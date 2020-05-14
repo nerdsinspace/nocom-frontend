@@ -1,0 +1,4 @@
+<div *ngFor="let note of notes" class="{{generateCss(note)}} h-auto w-auto p-1 m-1">
+  <a class="close" (click)="note.remove()"></a>
+  <span [innerHTML]="note.message"></span>
+</div>

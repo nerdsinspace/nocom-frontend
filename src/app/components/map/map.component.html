@@ -1,0 +1,58 @@
+<div (window:resize)="onResize()">
+  <plotly-plot divId="overview"
+               updateOnlyWithRevision="true"
+               updateOnLayoutChange="false"
+               [revision]="revision"
+               [data]="data"
+               [layout]="layout"
+               [config]="config"
+               (initialized)="onPlotInit()"
+               (selected)="onSelected($event)"
+               (relayout)="onRelayout($event)"
+               (relayouting)="onRelayouting($event)"
+               (plotly_click)="onPlotlyClicked($event)">
+  </plotly-plot>
+</div>
+<div class="container-sm text-sm m-0 p-0 w-auto" style="position: absolute; left: 0; top: 56px" id="note-container">
+  <app-notification id="{{notificationId}}"></app-notification>
+</div>
+<div style="position: fixed; bottom: 0; left: 0">
+  <div class="input-group p-2">
+    <input type="text" class="form-control form-control-sm" readonly
+           data-toggle="tooltip" data-placement="top" title="Selected XZ coordinate"
+           value="{{selectedCoordinate}}">
+    <div class="input-group-append">
+      <button class="btn btn-sm btn-outline-secondary" type="button"
+              (click)="onScaleCoord(this, 1/8)"
+              [disabled]="selectedNetherCoord"
+              data-toggle="tooltip" data-placement="top" title="Divide selected by 8">1/8x
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" type="button"
+              (click)="onScaleCoord(this, 8)"
+              [disabled]="!selectedNetherCoord"
+              data-toggle="tooltip" data-placement="top" title="Multiply selected by 8">8x
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" type="button"
+              ngxClipboard [cbContent]="selectedCoordinate"
+              data-toggle="tooltip" data-placement="top" title="Copy to clipboard">
+        <i class="fa fa-clipboard" aria-hidden="true"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" type="button"
+              (mousedown)="selectedOffsetCoordinate = getCoordsWithOffset()"
+              ngxClipboard [cbContent]="selectedOffsetCoordinate"
+              data-toggle="tooltip" data-placement="top" title="Copy offset coords to clipboard">
+        <i class="fa fa-random" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 0; bottom: 0; max-height: 25%; overflow-y: scroll">
+  <ul *ngIf="playerAssociations.length > 0" class="list-group bg-transparent p-2 w-auto">
+    <li *ngFor="let player of playerAssociations"
+        class="list-group-item bg-transparent d-flex justify-content-between align-items-center py-1 px-1">
+      <span class="pr-2">{{player.username}}</span>
+      <span class="badge badge-pill {{getAssociationColorClass(player)}}">
+      {{player.strength.toFixed(2)}}</span>
+    </li>
+  </ul>
+</div>

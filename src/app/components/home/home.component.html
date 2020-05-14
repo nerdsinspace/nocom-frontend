@@ -1,0 +1,22 @@
+<div class="container pt-1">
+  <table class="table table-bordered table-striped table-sm">
+    <thead class="thead-dark">
+    <tr class="text-sm-center">
+      <th scope="col">Username</th>
+      <th scope="col">Server</th>
+      <th scope="col">Status</th>
+      <th scope="col">Last Update</th>
+      <th scope="col">Queue</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr *ngFor="let status of statuses" class="text-sm-center">
+      <th scope="row"><span>{{status.playerUsername}}</span></th>
+      <td><span>{{status.server}}</span></td>
+      <td><span class="{{getStatusColor(status)}}">{{status.state}}</span></td>
+      <td><span>{{status.timeElapsed}}</span></td>
+      <td><span>{{status.data}}</span></td>
+    </tr>
+    </tbody>
+  </table>
+</div>
