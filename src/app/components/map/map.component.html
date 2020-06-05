@@ -13,6 +13,17 @@
                (plotly_click)="onPlotlyClicked($event)">
   </plotly-plot>
 </div>
+<div style="position: absolute; top: 56px; left: 0" class="p-1">
+  <div class="row m-1">
+    <span class="badge badge-pill badge-danger">{{trackingCount[-1]}}</span>
+    <span class="badge badge-pill">+</span>
+    <span class="badge badge-pill badge-success">{{trackingCount[0]}}</span>
+    <span class="badge badge-pill">+</span>
+    <span class="badge badge-pill badge-primary">{{trackingCount[1]}}</span>
+    <span class="badge badge-pill">=</span>
+    <span class="badge badge-pill badge-info">{{trackingCount.sum()}}</span>
+  </div>
+</div>
 <div class="container-sm text-sm m-0 p-0 w-auto" style="position: absolute; left: 0; top: 56px" id="note-container">
   <app-notification id="{{notificationId}}"></app-notification>
 </div>
@@ -52,7 +63,8 @@
         class="list-group-item bg-transparent d-flex justify-content-between align-items-center py-1 px-1">
       <span class="pr-2">{{player.username}}</span>
       <span class="badge badge-pill {{getAssociationColorClass(player)}}">
-      {{player.strength.toFixed(2)}}</span>
+        {{player.strength.toFixed(2)}}
+      </span>
     </li>
   </ul>
 </div>

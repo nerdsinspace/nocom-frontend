@@ -1,10 +1,10 @@
-import { Hit } from './hit';
-
 export enum Dimension {
   NETHER = -1,
   OVERWORLD,
   END
 }
+
+export const allDimensions = [Dimension.NETHER, Dimension.OVERWORLD, Dimension.END];
 
 export function getDimensionIdByName(dimension: string): Dimension {
   switch (dimension.toLowerCase()) {

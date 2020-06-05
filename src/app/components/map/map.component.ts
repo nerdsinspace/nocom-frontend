@@ -3,7 +3,7 @@ import { PlotlyService } from 'angular-plotly.js';
 import { Track } from '../../models/track';
 import { Marker } from '../../models/marker';
 import { MarkerType } from '../../models/marker-type.enum';
-import { Dimension, fixDimensionMember } from '../../models/dimension.enum';
+import { allDimensions, Dimension, fixDimensionMember } from '../../models/dimension.enum';
 import { environment } from '../../../environments/environment';
 import { AuthenticationService } from '../../services/authentication/authentication.service';
 import * as SockJS from 'sockjs-client';
@@ -73,6 +73,15 @@ export class MapComponent implements OnInit, OnDestroy {
     scrollZoom: true
   };
   public revision = 0;
+  public trackingCount = {
+    [Dimension.NETHER]: 0,
+    [Dimension.OVERWORLD]: 0,
+    [Dimension.END]: 0,
+    sum: () => Object.values(this.trackingCount)
+      .filter(v => typeof v === 'number')
+      .map(v => v as number)
+      .reduce((a, b) => a + b, 0)
+  };
   public currentTrackTime = Date.now();
   public selectedCoordinate = '0 0';
   public selectedOffsetCoordinate = '0 0';
@@ -192,16 +201,18 @@ export class MapComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: clusters => this.onUpdateDBSCAN(clusters),
       error: err => console.log(err),
-      complete: () => {
-      }
+      complete: () => {}
     });
   }
 
   onTrackUpdate(tracks: Track[]) {
     // clear all markers
     this.getDimensionMarkers().forEach(marker => marker.untrackPoints());
+    allDimensions.forEach(d => this.trackingCount[d] = 0);
 
     tracks.forEach(track => {
+      this.trackingCount[track.dimension]++;
+
       const marker = this.getMarkerByDimension(track.dimension);
       marker.put(track);
       marker.uirevision++;

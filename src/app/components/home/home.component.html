@@ -11,7 +11,10 @@
     </thead>
     <tbody>
     <tr *ngFor="let status of statuses" class="text-sm-center">
-      <th scope="row"><span>{{status.playerUsername}}</span></th>
+      <th scope="row">
+        <span class="badge badge-pill"></span>
+        <span>{{status.playerUsername}}</span>
+      </th>
       <td><span>{{status.server}}</span></td>
       <td><span class="{{getStatusColor(status)}}">{{status.state}}</span></td>
       <td><span>{{status.timeElapsed}}</span></td>
@@ -19,4 +22,13 @@
     </tr>
     </tbody>
   </table>
+  <plotly-plot updateOnlyWithRevision="true"
+               updateOnLayoutChange="false"
+               [revision]="revision"
+               [data]="data"
+               [layout]="layout"
+               [config]="config"
+               (initialized)="onPlotInit()"
+               (relayouting)="onRelayout($event)">
+  </plotly-plot>
 </div>
