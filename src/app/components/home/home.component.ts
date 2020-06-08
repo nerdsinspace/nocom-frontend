@@ -84,14 +84,15 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private onUpdateStatuses(statuses: PlayerStatusExt[]) {
     this.needsLayoutUpdate = false;
-    statuses.sort((a, b) => a.playerUsername.localeCompare(b.playerUsername))
+    statuses.filter(v => v.playerUsername !== null)
+      .sort((a, b) => a.playerUsername.localeCompare(b.playerUsername))
       .forEach(status => {
         let pl = this.statuses.filter(v => v.playerUuid === status.playerUuid).pop();
         if (pl == null) {
           // add if entry does not exist
           pl = status;
           this.statuses.push(pl);
-          this.layout.yaxis.tickvals.push(pl.playerUsername);
+          this.layout.yaxis.tickvals.unshift(pl.playerUsername);
           this.needsLayoutUpdate = true;
         }
         Object.assign(pl, status);
