@@ -1,0 +1,15 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build the artifact
+      run: ./scripts/cibuild
+    - name: Publish the artifact
+      run: ./scripts/cipublish
