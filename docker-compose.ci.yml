@@ -1,0 +1,11 @@
+version: '3.7'
+services:
+  nocom-frontend:
+    image: node:14
+    environment:
+      - GIT_COMMIT=${GIT_COMMIT:-latest}
+      - NOCOM_DEBUG=1
+    volumes:
+      - ./:/opt/nocom-frontend/:Z
+    working_dir: /opt/nocom-frontend
+    entrypoint: npm

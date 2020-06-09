@@ -1,0 +1,24 @@
+image: docker:19
+
+stages:
+  - build
+  - push
+
+cache:
+  paths:
+    - dist
+
+before_script:
+  - echo -n $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+
+building:
+  stage: build
+  script:
+    - ./scripts/cibuild
+
+publishing:
+  stage: push
+  only:
+    - master
+  script:
+    - ./scripts/cipublish
