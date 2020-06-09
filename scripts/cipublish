@@ -19,8 +19,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     if [ "${1:-}" = "--help" ]; then
         usage
     else
-#        docker \
-#            login -u "${GITLAB_USER}" -p "${GITLAB_PASSWORD}" registry.gitlab.com;
+        docker \
+            login -u "${GITLAB_USER}" -p "${GITLAB_PASSWORD}" registry.gitlab.com;
 
         if [ "x${GIT_BRANCH}" = "xmaster" ]; then
             docker push "registry.gitlab.com/nerdsinc/nocom-frontend:master"
