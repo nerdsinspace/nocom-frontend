@@ -29,16 +29,23 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     if [ "${1:-}" = "--help" ]; then
         usage
     else
+
+        if [ "$IN_CI" = "true" ]; then
+            DOCKER_USER="root"
+        else
+            DOCKER_USER="$(id -u):$(id -g)"
+        fi
+
         GIT_COMMIT="${GIT_COMMIT}" docker-compose \
             -f docker-compose.ci.yml \
             run --rm \
-            --user "$(id -u):$(id -g)" \
+            --user $DOCKER_USER \
             nocom-frontend install
 
         GIT_COMMIT="${GIT_COMMIT}" docker-compose \
             -f docker-compose.ci.yml \
             run --rm \
-            --user "$(id -u):$(id -g)" \
+            --user $DOCKER_USER \
             nocom-frontend run ng build -- --prod --output-path=dist
 
         docker-compose -f docker-compose.ci.yml down
