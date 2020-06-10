@@ -41,6 +41,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             --user "$(id -u):$(id -g)" \
             nocom-frontend run ng build -- --prod --output-path=dist
 
+        docker-compose -f docker-compose.ci.yml down
+
         if [ "x${GIT_BRANCH}" = "xmaster" ]; then
             docker build -t "registry.gitlab.com/nerdsinc/nocom-frontend:master" -t "registry.gitlab.com/nerdsinc/nocom-frontend:latest" .
         else
