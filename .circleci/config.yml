@@ -1,3 +1,12 @@
+workflows:
+  version: 2
+  nocom-frontend:
+    jobs:
+      - cibuild
+      - cipublish:
+          requires:
+            - cibuild
+
 executors:
   docker-executor:
       docker:
