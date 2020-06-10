@@ -1,0 +1,33 @@
+executors:
+  docker-executor:
+      docker:
+      - image: docker:19
+
+version: 2.1
+jobs:
+  cibuild:
+    resource_class: small
+    executor: docker-executor
+    steps:
+      - checkout
+      - run:
+          name: Build the application
+          working_directory: .
+          command: |
+            ./scripts/cibuild
+      - persist_to_workspace:
+          root: /
+          paths:
+            - var/lib/docker/image
+
+  cipublish:
+    resource_class: small
+    executor: docker-executor
+    steps:
+      - attach_workspace:
+          at: /
+      - run:
+          name: Push docker image
+          working_directory: .
+          command: |
+            ./scripts/cipublish
