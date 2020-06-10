@@ -8,15 +8,15 @@ workflows:
             - cibuild
 
 executors:
-  docker-executor:
-      docker:
-      - image: docker:19
+  docker-vm:
+      machine:
+        image: ubuntu-1604:202004-01
 
 version: 2.1
 jobs:
   cibuild:
     resource_class: small
-    executor: docker-executor
+    executor: docker-vm
     steps:
       - checkout
       - run:
@@ -31,7 +31,7 @@ jobs:
 
   cipublish:
     resource_class: small
-    executor: docker-executor
+    executor: docker-vm
     steps:
       - attach_workspace:
           at: /
