@@ -21,7 +21,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     showlegend: false,
     hoverdistance: 200,
     hovermode: 'closest',
-    dragmode: 'pan',
+    // dragmode: 'pan',
     xaxis: {
       range: [0, 0],
       // visible: false,
