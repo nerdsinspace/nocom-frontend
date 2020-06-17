@@ -26,9 +26,11 @@ node {
       }
     }
 
-    stage('cipublish') {
-      wrap([$class: 'AnsiColorBuildWrapper']) {
-        sh './scripts/cipublish'
+    withCredentials([usernamePassword(credentialsId: 'nocom-frontend-gitlab-docker-registry', passwordVariable: 'GITLAB_PASSWORD', usernameVariable: 'GITLAB_USER')]) {
+      stage('cipublish') {
+        wrap([$class: 'AnsiColorBuildWrapper']) {
+          sh './scripts/cipublish'
+        }
       }
     }
   } catch (err) {
