@@ -16,8 +16,7 @@ Provision bare minimum required to compile a nocom-http.
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     if [ "${1:-}" = "--help" ]; then
         usage
-    else        
-        mkdir -p .gradle
+    else
         docker-compose \
             -f docker-compose.ci.yml \
             run --rm \
