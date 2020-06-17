@@ -50,7 +50,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 
         docker-compose -f docker-compose.ci.yml down
 
-        if [ "x${GIT_BRANCH}" = "xmaster" ]; then
+        if [ "x${GIT_BRANCH}" = "xmaster" ] || [ "x${GIT_BRANCH}" = "xHEAD" ]; then
             docker build -t "registry.gitlab.com/nerdsinc/nocom-frontend:master" -t "registry.gitlab.com/nerdsinc/nocom-frontend:latest" .
         else
             docker build -t "registry.gitlab.com/nerdsinc/nocom-frontend:${GIT_BRANCH}" .
