@@ -7,15 +7,6 @@ node {
       checkout scm
     }
 
-    // Execute `update` wrapped within a plugin that translates
-    // ANSI color codes to something that renders inside the Jenkins
-    // console.
-//    stage('update') {
-//      wrap([$class: 'AnsiColorBuildWrapper']) {
-//        sh './scripts/update'
-//      }
-//    }
-
     // Execute `cibuild` wrapped within a plugin that translates
     // ANSI color codes to something that renders inside the Jenkins
     // console.
