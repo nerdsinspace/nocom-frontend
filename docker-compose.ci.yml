@@ -4,7 +4,7 @@ services:
     image: node:12
     network_mode: host
     environment:
-      - NPM_CONFIG_CACHE=~/.npm
+      - NPM_CONFIG_CACHE=/opt/nocom-frontend/.npm
     volumes:
       - ./:/opt/nocom-frontend/:Z
     working_dir: /opt/nocom-frontend
