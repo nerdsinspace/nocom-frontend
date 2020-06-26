@@ -2,10 +2,9 @@ version: '3.3'
 services:
   nocom-frontend:
     image: node:12
+    network_mode: host
     environment:
-      - GIT_COMMIT=${GIT_COMMIT:-latest}
-      - NOCOM_DEBUG=1
-      - NPM_CONFIG_CACHE=/opt/nocom-frontend/.npm
+      - NPM_CONFIG_CACHE=~/.npm
     volumes:
       - ./:/opt/nocom-frontend/:Z
     working_dir: /opt/nocom-frontend
