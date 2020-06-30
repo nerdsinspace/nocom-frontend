@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import { filter, map, tap } from 'rxjs/operators';
 import { fixSessionDates, SessionGroup } from '../../models/player-session';
 import * as moment from 'moment';
+import { duration } from 'moment';
 
 @Component({
   selector: 'app-home',
@@ -111,8 +112,9 @@ export class HomeComponent implements OnInit, OnDestroy {
         params: {
           playerUuids: this.statuses.map(stat => stat.playerUuid),
           server: '2b2t.org',
-          from: '' + this.lowerTimeBoundary(this.lastSessionUpdate).valueOf(), // if null then current time is used
-          max: '' + 10000
+          from: '' + (this.lastSessionUpdate == null
+            ? duration(1, 'day').asMilliseconds()
+            : moment().diff(this.lastSessionUpdate))
         }
       }).pipe(
         map(body => body as SessionGroup[]),
@@ -173,7 +175,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     const init = xaxis.range[1] === 0;
 
     let now, past;
-    if(init) {
+    if (init) {
       now = moment();
       past = this.lowerTimeBoundary(now);
     } else {
