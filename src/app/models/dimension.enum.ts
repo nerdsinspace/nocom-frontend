@@ -18,6 +18,18 @@ export function getDimensionIdByName(dimension: string): Dimension {
   return null;
 }
 
+export function getDimensionPrettyName(dimension: Dimension): string {
+  switch (dimension) {
+    case Dimension.NETHER:
+      return 'Nether';
+    case Dimension.OVERWORLD:
+      return 'Overworld';
+    case Dimension.END:
+      return 'End';
+  }
+  throw 'unknown dimension';
+}
+
 export function fixDimensionMember(o: {dimension?: Dimension | string}) {
   // the data from the api uses strings to represent dimensions
   // we must convert them to the enum type

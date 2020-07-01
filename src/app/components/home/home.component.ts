@@ -6,6 +6,8 @@ import { filter, map, tap } from 'rxjs/operators';
 import { fixSessionDates, SessionGroup } from '../../models/player-session';
 import * as moment from 'moment';
 import { duration } from 'moment';
+import { Dimension, getDimensionPrettyName } from '../../models/dimension.enum';
+import { PlotlyService } from 'angular-plotly.js';
 
 @Component({
   selector: 'app-home',
@@ -17,6 +19,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   revision = 0;
   data = [];
   layout = {
+    width: 0,
+    height: 0,
     uirevision: 0,
     barmode: 'stack',
     showlegend: false,
@@ -40,6 +44,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     scrollZoom: false
   };
 
+  private dimensionColor = {
+    [Dimension.NETHER]: 0,
+    [Dimension.OVERWORLD]: 0,
+    [Dimension.END]: 0,
+  }
+
   private lastSessionUpdate: number = null;
   private updatingSessions = false;
   private needsUpdate = false;
@@ -47,7 +57,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private lockGuard = false;
   private intervals = [];
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private plotly: PlotlyService) {
   }
 
   ngOnInit(): void {
@@ -140,7 +150,8 @@ export class HomeComponent implements OnInit, OnDestroy {
 
       // if missing then add a new one
       if (tr == null) {
-        tr = new SessionTrace(group.uuid, session.join.getTime());
+        const dim = this.statuses.find(v => v.playerUuid === group.uuid).dimension;
+        tr = new SessionTrace(group.uuid, session.join.getTime(), this.getDimensionColor(dim));
         this.data.push(tr);
       }
 
@@ -229,6 +240,21 @@ export class HomeComponent implements OnInit, OnDestroy {
         return 'text-danger';
     }
   }
+
+  getDimensionName(dimension: Dimension): string {
+    return getDimensionPrettyName(dimension);
+  }
+
+  getDimensionColor(dimension: Dimension): string {
+    switch (dimension) {
+      case Dimension.NETHER:
+        return 'rgb(255, 111, 0)';
+      case Dimension.OVERWORLD:
+        return 'rgb(124, 252, 0)';
+      case Dimension.END:
+        return 'rgb(2, 253, 217)';
+    }
+  }
 }
 
 interface PlayerStatusExt extends PlayerStatus {
@@ -248,6 +274,9 @@ class SessionTrace {
     width: 1
   };
 
-  constructor(public _uuid: string, public _join: number) {
+  constructor(public _uuid: string, public _join: number, color?: string) {
+    if (color != null) {
+      this.marker.color = color;
+    }
   }
 }
