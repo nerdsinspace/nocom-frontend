@@ -348,7 +348,7 @@ export class MapComponent implements OnInit, OnDestroy {
         }));
 
         this.trackLock = true;
-        this.api.getTrackHistory(hit.trackId).subscribe({
+        this.api.getTrackHistory(hit.trackId, 10_000).subscribe({
           next: async history => await this.onTrackHistoryUpdate(history),
           error: err => console.error('failed to update track history', err),
           complete: () => {
