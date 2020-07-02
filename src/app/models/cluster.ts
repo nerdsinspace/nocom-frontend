@@ -13,6 +13,7 @@ export interface Cluster extends Point {
   disjointRank: number;
   disjointSize: number;
   leafs?: ClusterLeaf[];
+  updatedAt: Date;
 }
 
 export interface ClusterLeaf extends Point {

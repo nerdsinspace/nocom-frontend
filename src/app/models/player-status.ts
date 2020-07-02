@@ -1,4 +1,4 @@
-import { Dimension, fixDimensionMember } from './dimension.enum';
+import { Dimension } from './dimension.enum';
 
 export interface PlayerStatus {
   playerUsername: string;
@@ -8,11 +8,5 @@ export interface PlayerStatus {
   updatedAt: Date;
   data: string;
   dimension: Dimension;
-}
-
-export function fixPlayerStatus(o: {updatedAt: Date | string, dimension: Dimension | string}) {
-  if (typeof o.updatedAt === 'string') {
-    o.updatedAt = new Date(o.updatedAt);
-  }
-  fixDimensionMember(o);
+  _lastUpdate: Date;
 }

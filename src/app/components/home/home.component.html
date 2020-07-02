@@ -19,7 +19,7 @@
       <td><span>{{status.server}}</span></td>
       <td><span>{{getDimensionName(status.dimension)}}</span></td>
       <td><span class="{{getStatusColor(status)}}">{{status.state}}</span></td>
-      <td><span>{{status.timeElapsed}}</span></td>
+      <td><span>{{getTimeUpdatedPretty(status.updatedAt)}}</span></td>
       <td><span>{{status.data}}</span></td>
     </tr>
     </tbody>

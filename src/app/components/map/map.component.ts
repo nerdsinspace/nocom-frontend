@@ -3,22 +3,20 @@ import { PlotlyService } from 'angular-plotly.js';
 import { Track } from '../../models/track';
 import { Marker } from '../../models/marker';
 import { MarkerType } from '../../models/marker-type.enum';
-import { allDimensions, Dimension, fixDimensionMember } from '../../models/dimension.enum';
+import { allDimensions, Dimension } from '../../models/dimension.enum';
 import { environment } from '../../../environments/environment';
 import { AuthenticationService } from '../../services/authentication/authentication.service';
 import * as SockJS from 'sockjs-client';
 import { Client, StompSubscription } from '@stomp/stompjs';
 import { Plotly } from 'angular-plotly.js/src/app/shared/plotly.interface';
-import { of } from 'rxjs';
-import { map, tap } from 'rxjs/operators';
 import { Hit } from '../../models/hit';
-import { HttpClient } from '@angular/common/http';
 import { TrackHistory } from '../../models/track-history';
 import { INotificationService, NotificationService } from '../../services/notification/notification.service';
 import { Note, NoteType } from '../../models/note';
 import { Cluster } from '../../models/cluster';
 import { JsUtils } from '../../models/js-utils';
 import { Player } from '../../models/player';
+import { ApiControllerService } from '../../services/api/api-controller.service';
 import PlotlyHTMLElement = Plotly.PlotlyHTMLElement;
 import PlotlyInstance = Plotly.PlotlyInstance;
 
@@ -52,7 +50,7 @@ export class MapComponent implements OnInit, OnDestroy {
       fixedrange: false,
       tickmode: 'linear',
       dtick: 100_000,
-      nticks: 100,
+      nticks: 100
     },
     yaxis: {
       autorange: false,
@@ -94,7 +92,7 @@ export class MapComponent implements OnInit, OnDestroy {
   private subscriptions: StompSubscription[] = [];
   private trackLock: boolean;
 
-  private traceColors: DimensionColorMap = {
+  private traceColors = {
     [Dimension.NETHER]: [
       'rgb(255, 111, 0)',
       'rgb(245, 197, 54)'
@@ -118,9 +116,9 @@ export class MapComponent implements OnInit, OnDestroy {
 
   constructor(private plotly: PlotlyService,
               private auth: AuthenticationService,
-              private http: HttpClient,
-              _notificationService: NotificationService) {
-    this.notify = _notificationService.createProxy(this.notificationId);
+              private api: ApiControllerService,
+              ns: NotificationService) {
+    this.notify = ns.createProxy(this.notificationId);
     this.tailMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.NETHER, color: `rgb(255, 0, 0)`}));
     this.tailMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.OVERWORLD, color: `rgb(0, 255, 0)`}));
     this.tailMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.END, color: `rgb(0, 0, 255)`}));
@@ -132,17 +130,10 @@ export class MapComponent implements OnInit, OnDestroy {
     });
 
     this.client.onConnect = receipt => {
-      const sub = this.client.subscribe('/ws-user/ws-subscribe/tracker',
-        message => of(message.body)
-          .pipe(
-            // parse response body and cast it to a track model
-            map(body => JSON.parse(body) as Track[]),
-            // fix track data having wrong types
-            tap(tracks => tracks.forEach(track => fixDimensionMember(track)))
-          ).subscribe({
-            next: tracks => this.onTrackUpdate(tracks),
-            error: err => console.error('failed to update tracks', err)
-          }));
+      const sub = this.api.trackerListener(this.client, {
+        next: tracks => this.onTrackUpdate(tracks),
+        error: err => console.error('failed to update tracks', err)
+      });
       this.subscriptions.push(sub);
 
       this.intervals.push(setInterval(() => this.onTick(), 2000));
@@ -176,32 +167,17 @@ export class MapComponent implements OnInit, OnDestroy {
 
   onTick() {
     if (!this.client.connected) {
+      setTimeout(() => this.onTick(), 100);
       return;
     }
 
-    this.client.publish({
-      destination: '/ws-api/tracking',
-      body: JSON.stringify({
-        server: '2b2t.org',
-        duration: 10000,
-        time: '' + (this.currentTrackTime = Date.now())
-      })
-    });
+    this.api.requestTrackerUpdate(this.client, '2b2t.org', this.currentTrackTime = Date.now());
   }
 
   onDBSCAN() {
-    this.http.post(`${environment.apiUrl}/api/root-clusters`, null, {
-      params: {
-        server: '2b2t.org',
-        dimension: '0'
-      }
-    }).pipe(
-      map(body => body as Cluster[]),
-      tap(clusters => clusters.forEach(cluster => fixDimensionMember(cluster)))
-    ).subscribe({
+    this.api.getRootClusters('2b2t.org', Dimension.OVERWORLD).subscribe({
       next: clusters => this.onUpdateDBSCAN(clusters),
-      error: err => console.log(err),
-      complete: () => {}
+      error: err => console.log(err)
     });
   }
 
@@ -285,12 +261,19 @@ export class MapComponent implements OnInit, OnDestroy {
     this.removeMarkers(MarkerType.DBSCAN);
 
     const marker = new Marker(MarkerType.DBSCAN, {color: 'rgb(255,0,255)'});
+    const markerTimings = new Marker(MarkerType.DBSCAN, {color: 'rgb(100,100,255)'});
 
     clusters.forEach(cluster => {
-      marker.put(cluster);
+      if (cluster.updatedAt != null) {
+        const i = markerTimings.put(cluster);
+        markerTimings.text[i] = cluster.updatedAt.toLocaleString();
+      } else {
+        marker.put(cluster);
+      }
     });
 
     this.addMarker(marker);
+    this.addMarker(markerTimings);
 
     return await this.redrawGraph();
   }
@@ -307,15 +290,10 @@ export class MapComponent implements OnInit, OnDestroy {
 
     this.tailMarker(marker);
 
-    this.http.post(`${environment.apiUrl}/api/cluster-associations`, null, {
-      params: {
-        clusterId: '' + root.id
-      }
-    }).pipe(map(response => response as Player[]))
-      .subscribe({
-        next: players => this.onClusterAssociations(players),
-        error: err => console.error('failed to get cluster associations', err)
-      });
+    this.api.getClusterAssociations(root.id).subscribe({
+      next: players => this.onClusterAssociations(players),
+      error: err => console.error('failed to get cluster associations', err)
+    });
 
     return await this.redrawGraph();
   }
@@ -370,16 +348,7 @@ export class MapComponent implements OnInit, OnDestroy {
         }));
 
         this.trackLock = true;
-        this.http.post(`${environment.apiUrl}/api/full-track-history`, null, {
-          params: {
-            trackId: '' + hit.trackId,
-            max: '0',
-            aggregationMs: '10000'
-          }
-        }).pipe(
-          map(response => response as TrackHistory[]),
-          tap(history => history.forEach(track => fixDimensionMember(track)))
-        ).subscribe({
+        this.api.getTrackHistory(hit.trackId).subscribe({
           next: async history => await this.onTrackHistoryUpdate(history),
           error: err => console.error('failed to update track history', err),
           complete: () => {
@@ -399,14 +368,7 @@ export class MapComponent implements OnInit, OnDestroy {
 
         this.trackLock = true;
 
-        this.http.post(`${environment.apiUrl}/api/cluster`, null, {
-          params: {
-            clusterId: '' + cluster.id
-          }
-        }).pipe(
-          map(body => body as Cluster),
-          tap(_cluster => fixDimensionMember(_cluster))
-        ).subscribe({
+        this.api.getClusterChildren(cluster.id).subscribe({
           next: _cluster => this.onDeepDBSCAN(_cluster),
           error: err => console.error(err),
           complete: () => {
@@ -421,9 +383,11 @@ export class MapComponent implements OnInit, OnDestroy {
     }
   }
 
-  onClicked(event) {}
+  onClicked(event) {
+  }
 
-  onHover(event) {}
+  onHover(event) {
+  }
 
   onRelayout(event) {
     this.onRelayouting(event);
@@ -442,9 +406,11 @@ export class MapComponent implements OnInit, OnDestroy {
     this.layout.height = (window.innerHeight - overview.offsetTop);
   }
 
-  onScroll(event) {}
+  onScroll(event) {
+  }
 
-  onMouseMove(event) {}
+  onMouseMove(event) {
+  }
 
   onScaleCoord(o, scale) {
     if (this.selectedCoordinate != null) {
@@ -566,10 +532,6 @@ export class MapComponent implements OnInit, OnDestroy {
     }
   }
 }
-
-type DimensionColorMap = {
-  [dimension in Dimension]: string | string[];
-};
 
 interface PlotlyInstanceExt extends PlotlyInstance {
   redraw(div: PlotlyHTMLElement): Promise<PlotlyHTMLElement>;

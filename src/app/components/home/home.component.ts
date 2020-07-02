@@ -1,13 +1,10 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { fixPlayerStatus, PlayerStatus } from '../../models/player-status';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
-import { filter, map, tap } from 'rxjs/operators';
-import { fixSessionDates, SessionGroup } from '../../models/player-session';
+import { PlayerStatus } from '../../models/player-status';
+import { SessionGroup } from '../../models/player-session';
 import * as moment from 'moment';
 import { duration } from 'moment';
 import { Dimension, getDimensionPrettyName } from '../../models/dimension.enum';
-import { PlotlyService } from 'angular-plotly.js';
+import { ApiControllerService } from '../../services/api/api-controller.service';
 
 @Component({
   selector: 'app-home',
@@ -15,7 +12,7 @@ import { PlotlyService } from 'angular-plotly.js';
   styleUrls: ['./home.component.css']
 })
 export class HomeComponent implements OnInit, OnDestroy {
-  statuses = [] as PlayerStatusExt[];
+  statuses = [] as PlayerStatus[];
   revision = 0;
   data = [];
   layout = {
@@ -44,12 +41,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     scrollZoom: false
   };
 
-  private dimensionColor = {
-    [Dimension.NETHER]: 0,
-    [Dimension.OVERWORLD]: 0,
-    [Dimension.END]: 0,
-  }
-
   private lastSessionUpdate: number = null;
   private updatingSessions = false;
   private needsUpdate = false;
@@ -57,11 +48,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   private lockGuard = false;
   private intervals = [];
 
-  constructor(private http: HttpClient, private plotly: PlotlyService) {
-  }
+  constructor(private api: ApiControllerService) { }
 
-  ngOnInit(): void {
-  }
+  ngOnInit(): void { }
 
   ngOnDestroy(): void {
     while (this.intervals.length > 0) {
@@ -80,20 +69,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private updateStatuses() {
-    this.http.get(`${environment.apiUrl}/api/bot-statuses`)
-      .pipe(
-        map(body => body as PlayerStatusExt[]),
-        tap(_statuses => _statuses.forEach(s => {
-          fixPlayerStatus(s);
-          s.timeElapsed = moment(s.updatedAt).fromNow();
-        }))
-      ).subscribe({
+    this.api.getBotStatuses().subscribe({
       next: _statuses => this.onUpdateStatuses(_statuses),
       error: err => console.error('Failed to get bot statuses', err)
     });
   }
 
-  private onUpdateStatuses(statuses: PlayerStatusExt[]) {
+  private onUpdateStatuses(statuses: PlayerStatus[]) {
     this.needsLayoutUpdate = false;
     statuses.filter(v => v.playerUsername !== null)
       .sort((a, b) => a.playerUsername.localeCompare(b.playerUsername))
@@ -118,18 +100,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     // prevent sessions from querying twice if the database is slow to respond
     if (!this.updatingSessions) {
       this.updatingSessions = true;
-      this.http.post(`${environment.apiUrl}/api/player-sessions`, null, {
-        params: {
-          playerUuids: this.statuses.map(stat => stat.playerUuid),
-          server: '2b2t.org',
-          from: '' + (this.lastSessionUpdate == null
-            ? duration(1, 'day').asMilliseconds()
-            : moment().diff(this.lastSessionUpdate))
-        }
-      }).pipe(
-        map(body => body as SessionGroup[]),
-        filter(groups => groups.length > 0),
-        tap(groups => groups.forEach(group => group.sessions.forEach(session => fixSessionDates(session))))
+      this.api.getPlayerSessions(
+        this.statuses.map(stat => stat.playerUuid),
+        '2b2t.org',
+        this.lastSessionUpdate == null
+          ? duration(1, 'day').asMilliseconds()
+          : moment().diff(this.lastSessionUpdate)
       ).subscribe({
         next: sessions => this.mapPlayerSessions(sessions),
         error: err => console.error('Failed to get bot sessions', err),
@@ -255,10 +231,10 @@ export class HomeComponent implements OnInit, OnDestroy {
         return 'rgb(2, 253, 217)';
     }
   }
-}
 
-interface PlayerStatusExt extends PlayerStatus {
-  timeElapsed: string;
+  getTimeUpdatedPretty(time: Date): string {
+    return moment(time).fromNow()
+  }
 }
 
 class SessionTrace {
