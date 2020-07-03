@@ -12,11 +12,13 @@ import { HttpInterceptorService } from './services/http/http-interceptor.service
 import { AppRoutingModule } from './app-routing.module';
 import { HomeComponent } from './components/home/home.component';
 import { MapComponent } from './components/map/map.component';
-import { NotificationComponent } from './components/notification/notification.component';
 import { NotificationModule } from './modules/notification/notification.module';
 import { ClipboardModule } from 'ngx-clipboard';
+import { InjectableRxStompConfig, RxStompService, rxStompServiceFactory } from '@stomp/ng2-stompjs';
+import { StompConfigurationService } from './services/stomp/stomp-configuration.service';
 
 PlotlyViaCDNModule.plotlyVersion = 'latest';
+
 // PlotlyViaCDNModule.plotlyBundle=
 
 @NgModule({
@@ -25,7 +27,7 @@ PlotlyViaCDNModule.plotlyVersion = 'latest';
     HeaderComponent,
     LoginComponent,
     HomeComponent,
-    MapComponent,
+    MapComponent
   ],
   imports: [
     BrowserModule,
@@ -42,6 +44,15 @@ PlotlyViaCDNModule.plotlyVersion = 'latest';
       provide: HTTP_INTERCEPTORS,
       useClass: HttpInterceptorService,
       multi: true
+    },
+    {
+      provide: InjectableRxStompConfig,
+      useClass: StompConfigurationService
+    },
+    {
+      provide: RxStompService,
+      useFactory: rxStompServiceFactory,
+      deps: [InjectableRxStompConfig]
     }
   ],
   bootstrap: [AppComponent]

@@ -4,19 +4,17 @@ import { Track } from '../../models/track';
 import { Marker } from '../../models/marker';
 import { MarkerType } from '../../models/marker-type.enum';
 import { allDimensions, Dimension } from '../../models/dimension.enum';
-import { environment } from '../../../environments/environment';
 import { AuthenticationService } from '../../services/authentication/authentication.service';
-import * as SockJS from 'sockjs-client';
-import { Client, StompSubscription } from '@stomp/stompjs';
 import { Plotly } from 'angular-plotly.js/src/app/shared/plotly.interface';
 import { Hit } from '../../models/hit';
 import { TrackHistory } from '../../models/track-history';
-import { INotificationService, NotificationService } from '../../services/notification/notification.service';
-import { Note, NoteType } from '../../models/note';
+import { NotificationService } from '../../services/notification/notification.service';
 import { Cluster } from '../../models/cluster';
 import { JsUtils } from '../../models/js-utils';
 import { Player } from '../../models/player';
 import { ApiControllerService } from '../../services/api/api-controller.service';
+import { RxStompService } from '@stomp/ng2-stompjs';
+import { SchedulerService } from '../../services/scheduler/scheduler.service';
 import PlotlyHTMLElement = Plotly.PlotlyHTMLElement;
 import PlotlyInstance = Plotly.PlotlyInstance;
 
@@ -86,10 +84,7 @@ export class MapComponent implements OnInit, OnDestroy {
   public selectedNetherCoord = false;
   public playerAssociations = [] as Player[];
 
-  private notify: INotificationService;
-  private client: Client;
-  private intervals: any = [];
-  private subscriptions: StompSubscription[] = [];
+  private notify: NotificationService;
   private trackLock: boolean;
 
   private traceColors = {
@@ -117,45 +112,32 @@ export class MapComponent implements OnInit, OnDestroy {
   constructor(private plotly: PlotlyService,
               private auth: AuthenticationService,
               private api: ApiControllerService,
+              private stomp: RxStompService,
+              private scheduler: SchedulerService,
               ns: NotificationService) {
     this.notify = ns.createProxy(this.notificationId);
-    this.tailMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.NETHER, color: `rgb(255, 0, 0)`}));
-    this.tailMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.OVERWORLD, color: `rgb(0, 255, 0)`}));
-    this.tailMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.END, color: `rgb(0, 0, 255)`}));
+
+    this.addMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.NETHER, color: `rgb(255, 0, 0)`}));
+    this.addMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.OVERWORLD, color: `rgb(0, 255, 0)`}));
+    this.addMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.END, color: `rgb(0, 0, 255)`}));
   }
 
   ngOnInit(): void {
-    this.client = new Client({
-      webSocketFactory: () => new SockJS(`${environment.apiUrl}/websocket?accessToken=${this.auth.user.accessToken}`)
+    this.api.trackerListener().subscribe({
+      next: tracks => this.onTrackUpdate(tracks),
+      error: err => console.error('failed to update tracks', err)
     });
 
-    this.client.onConnect = receipt => {
-      const sub = this.api.trackerListener(this.client, {
-        next: tracks => this.onTrackUpdate(tracks),
-        error: err => console.error('failed to update tracks', err)
-      });
-      this.subscriptions.push(sub);
-
-      this.intervals.push(setInterval(() => this.onTick(), 2000));
-      this.intervals.push(setInterval(() => this.onDBSCAN(), 60_000));
-    };
+    this.scheduler.repeating(() => this.onTick(), 2_000);
+    this.scheduler.repeating(() => this.onDBSCAN(), 60_000);
 
     // reset
     this.trackLock = false;
-
-    this.client.activate();
   }
 
   ngOnDestroy(): void {
-    while (this.intervals.length > 0) {
-      clearInterval(this.intervals.pop());
-    }
-    // unsub from all listeners
-    while (this.subscriptions.length > 0) {
-      this.subscriptions.pop().unsubscribe();
-    }
-    // disconnect from websocket
-    this.client.deactivate();
+    // clear all scheduled services
+    this.scheduler.clearAll();
   }
 
   onPlotInit() {
@@ -166,15 +148,18 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   onTick() {
-    if (!this.client.connected) {
-      setTimeout(() => this.onTick(), 100);
-      return;
+    if (!this.stomp.connected()) {
+      return this.scheduler.once(() => this.onTick(), 100);
     }
 
-    this.api.requestTrackerUpdate(this.client, '2b2t.org', this.currentTrackTime = Date.now());
+    this.api.requestTrackerUpdate('2b2t.org', this.currentTrackTime = Date.now());
   }
 
   onDBSCAN() {
+    if (!this.stomp.connected()) {
+      return this.scheduler.once(() => this.onDBSCAN(), 100);
+    }
+
     this.api.getRootClusters('2b2t.org', Dimension.OVERWORLD).subscribe({
       next: clusters => this.onUpdateDBSCAN(clusters),
       error: err => console.log(err)
@@ -288,7 +273,7 @@ export class MapComponent implements OnInit, OnDestroy {
       marker.put(leaf);
     });
 
-    this.tailMarker(marker);
+    this.addMarker(marker);
 
     this.api.getClusterAssociations(root.id).subscribe({
       next: players => this.onClusterAssociations(players),
@@ -304,10 +289,7 @@ export class MapComponent implements OnInit, OnDestroy {
 
   onPlotlyClicked(data: any) {
     if (this.trackLock) {
-      this.notify.publish(new Note({
-        message: 'Currently getting history for another track',
-        type: NoteType.WARNING
-      }));
+      this.notify.publishWarning('Currently handling another request');
       return;
     }
 
@@ -318,20 +300,14 @@ export class MapComponent implements OnInit, OnDestroy {
     const acceptedTypes = [MarkerType.DIMENSION, MarkerType.DBSCAN];
 
     if (!acceptedTypes.includes(marker.markerType)) {
-      this.notify.publish(new Note({
-        message: `Can only get track history for ${acceptedTypes.join(', ')} markers`,
-        type: NoteType.ERROR
-      }));
+      this.notify.publishError(`Can only get track history for ${acceptedTypes.join(', ')} markers`);
       return;
     }
 
     const hit: Hit = marker.getHitByIndex(index);
 
     if (hit == null) {
-      this.notify.publish(new Note({
-        message: `Index ${index} points to an invalid hit`,
-        type: NoteType.ERROR
-      }));
+      this.notify.publishError(`Index ${index} points to an invalid hit`);
       return;
     }
 
@@ -341,11 +317,7 @@ export class MapComponent implements OnInit, OnDestroy {
 
     switch (marker.markerType) {
       case MarkerType.DIMENSION: {
-        const message = this.notify.publish(new Note({
-          message: `Looking up track history for track #${hit.trackId}`,
-          type: NoteType.INFO,
-          persist: true
-        }));
+        const message = this.notify.publishInform(`Looking up track history for track #${hit.trackId}`, true);
 
         this.trackLock = true;
         this.api.getTrackHistory(hit.trackId, 10_000).subscribe({
@@ -360,11 +332,7 @@ export class MapComponent implements OnInit, OnDestroy {
       }
       case MarkerType.DBSCAN: {
         const cluster: Cluster = hit as Cluster;
-        const message = this.notify.publish(new Note({
-          message: `Looking up child nodes for node #${cluster.id}`,
-          type: NoteType.INFO,
-          persist: true
-        }));
+        const message = this.notify.publishInform(`Looking up child nodes for node #${cluster.id}`, true);
 
         this.trackLock = true;
 
@@ -475,17 +443,13 @@ export class MapComponent implements OnInit, OnDestroy {
     return this.getPlotly().redraw(this.getGraphDiv());
   }
 
-  private addMarker(marker: Marker, behind?: MarkerType) {
+  private addMarker(marker: Marker) {
     this.data.push(marker);
     this.data = this.data.sort((a, b) => {
       const orderA = this.drawOrder.findIndex(v => v === a.markerType);
       const orderB = this.drawOrder.findIndex(v => v === b.markerType);
       return (orderB > -1 ? orderB : 1000) - (orderA > -1 ? orderA : 1000);
     });
-  }
-
-  private tailMarker(marker: Marker) {
-    this.addMarker(marker);
   }
 
   private getGraphDiv(): PlotlyHTMLElement {

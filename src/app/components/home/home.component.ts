@@ -5,6 +5,7 @@ import * as moment from 'moment';
 import { duration } from 'moment';
 import { Dimension, getDimensionPrettyName } from '../../models/dimension.enum';
 import { ApiControllerService } from '../../services/api/api-controller.service';
+import { SchedulerService } from '../../services/scheduler/scheduler.service';
 
 @Component({
   selector: 'app-home',
@@ -43,25 +44,22 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private lastSessionUpdate: number = null;
   private updatingSessions = false;
-  private needsUpdate = false;
   private needsLayoutUpdate = false;
-  private lockGuard = false;
-  private intervals = [];
 
-  constructor(private api: ApiControllerService) { }
+  constructor(private api: ApiControllerService, private scheduler: SchedulerService) {
+  }
 
-  ngOnInit(): void { }
+  ngOnInit(): void {
+  }
 
   ngOnDestroy(): void {
-    while (this.intervals.length > 0) {
-      clearInterval(this.intervals.pop());
-    }
+    this.scheduler.clearAll();
   }
 
   onPlotInit() {
     this.layoutTicks();
     this.updateStatuses();
-    this.intervals.push(setInterval(() => this.updateStatuses(), 2500));
+    this.scheduler.repeating(() => this.updateStatuses(), 2500);
   }
 
   onRelayout(event) {

@@ -1,17 +1,18 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { Note } from '../../models/note';
+import { Note, NoteType } from '../../models/note';
 import { filter } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
 })
-export class NotificationService implements INotificationService {
+export class NotificationService {
   private subject = new Subject<Note>();
 
-  constructor() { }
+  constructor() {
+  }
 
-  onNotify(id: string): Observable<Note> {
+  onNotify(id?: string): Observable<Note> {
     return this.subject.asObservable().pipe(filter(v => v && v.id === id));
   }
 
@@ -20,17 +21,51 @@ export class NotificationService implements INotificationService {
     return note;
   }
 
-  clear(id: string) {
+  publishType(note: Note | string | Partial<Note>, type: NoteType, persist: boolean = false): Note {
+    const n = this.createNote(note);
+    n.type = type;
+    n.persist = persist;
+    return this.publish(n);
+  }
+
+  publishInform(note: Note | string | Partial<Note>, persist: boolean = false): Note {
+    return this.publishType(this.createNote(note), NoteType.INFO, persist);
+  }
+
+  publishError(note: Note | string | Partial<Note>, persist: boolean = false): Note {
+    return this.publishType(this.createNote(note), NoteType.ERROR, persist);
+  }
+
+  publishWarning(note: Note | string | Partial<Note>, persist: boolean = false): Note {
+    return this.publishType(this.createNote(note), NoteType.WARNING, persist);
+  }
+
+  publishSuccess(note: Note | string | Partial<Note>, persist: boolean = false): Note {
+    return this.publishType(this.createNote(note), NoteType.SUCCESS, persist);
+  }
+
+  clear(id?: string) {
     this.subject.next(new Note({id}));
   }
 
   createProxy(id: string) {
-    return new NotificationServiceProxy(this, id) as INotificationService;
+    return new NotificationServiceProxy(this, id);
+  }
+
+  private createNote(note: Note | string | Partial<Note>): Note {
+    if (note instanceof Note) {
+      return note;
+    } else if (typeof note === 'string') {
+      return new Note({message: note});
+    } else {
+      return new Note(note);
+    }
   }
 }
 
-export class NotificationServiceProxy implements INotificationService {
-  constructor(private service: INotificationService, private id: string) {
+class NotificationServiceProxy extends NotificationService {
+  constructor(private service: NotificationService, private id: string) {
+    super();
   }
 
   onNotify(): Observable<Note> {
@@ -45,10 +80,8 @@ export class NotificationServiceProxy implements INotificationService {
   clear() {
     this.service.clear(this.id);
   }
-}
 
-export interface INotificationService {
-  onNotify(id?: string);
-  publish(note: Note): Note;
-  clear(id?: string);
+  createProxy(id: string): NotificationServiceProxy {
+    return this;
+  }
 }

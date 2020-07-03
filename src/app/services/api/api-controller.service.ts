@@ -4,20 +4,19 @@ import { Dimension } from '../../models/dimension.enum';
 import { environment } from '../../../environments/environment';
 import { filter, map, tap } from 'rxjs/operators';
 import { Cluster } from '../../models/cluster';
-import { Observable, of, PartialObserver } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Player } from '../../models/player';
 import { TrackHistory } from '../../models/track-history';
 import { PlayerStatus } from '../../models/player-status';
 import { SessionGroup } from '../../models/player-session';
 import { Track } from '../../models/track';
-import { Client } from '@stomp/stompjs';
-import { Subscription } from 'stompjs';
+import { RxStompService } from '@stomp/ng2-stompjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiControllerService {
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private stomp: RxStompService) {
   }
 
   getRootClusters(server?: string, dimension?: Dimension): Observable<Cluster[]> {
@@ -29,8 +28,8 @@ export class ApiControllerService {
     }).pipe(
       map(body => body as Cluster[]),
       tap(clusters => clusters.forEach(cluster => {
-        ApiControllerService.fixDimension(cluster);
-        ApiControllerService.fixUpdatedAt(cluster);
+        fixDimension(cluster);
+        fixUpdatedAt(cluster);
       }))
     );
   }
@@ -42,7 +41,7 @@ export class ApiControllerService {
       }
     }).pipe(
       map(body => body as Cluster),
-      tap(cluster => ApiControllerService.fixDimension(cluster))
+      tap(cluster => fixDimension(cluster))
     );
   }
 
@@ -63,7 +62,7 @@ export class ApiControllerService {
       }
     }).pipe(
       map(response => response as TrackHistory[]),
-      tap(history => history.forEach(track => ApiControllerService.fixDimension(track)))
+      tap(history => history.forEach(track => fixDimension(track)))
     )
   }
 
@@ -72,8 +71,8 @@ export class ApiControllerService {
       .pipe(
         map(body => body as PlayerStatus[]),
         tap(statuses => statuses.forEach(s => {
-          ApiControllerService.fixDimension(s);
-          ApiControllerService.fixUpdatedAt(s);
+          fixDimension(s);
+          fixUpdatedAt(s);
         }))
       );
   }
@@ -88,23 +87,22 @@ export class ApiControllerService {
     }).pipe(
       map(body => body as SessionGroup[]),
       filter(groups => groups.length > 0),
-      tap(groups => groups.forEach(group => group.sessions.forEach(session => ApiControllerService.fixSessionDates(session))))
+      tap(groups => groups.forEach(group => group.sessions.forEach(session => fixSessionDates(session))))
     )
   }
 
-  trackerListener(client: Client, cb: PartialObserver<Track[]>): Subscription {
-    return client.subscribe('/ws-user/ws-subscribe/tracker',
-      message => of(message.body)
-        .pipe(
-          // parse response body and cast it to a track model
-          map(body => JSON.parse(body) as Track[]),
-          // fix track data having wrong types
-          tap(tracks => tracks.forEach(track => ApiControllerService.fixDimension(track)))
-        ).subscribe(cb));
+  trackerListener(): Observable<Track[]> {
+    return this.stomp.watch('/ws-user/ws-subscribe/tracker')
+      .pipe(
+        // parse response body and cast it to a track model
+        map(res => JSON.parse(res.body) as Track[]),
+        // fix track data having wrong types
+        tap(tracks => tracks.forEach(track => fixDimension(track)))
+      );
   }
 
-  requestTrackerUpdate(client: Client, server: string, startTime?: number, since: number = 15_000) {
-    client.publish({
+  requestTrackerUpdate(server: string, startTime?: number, since: number = 15_000) {
+    this.stomp.publish({
       destination: '/ws-api/tracking',
       body: JSON.stringify({
         server: server,
@@ -113,27 +111,27 @@ export class ApiControllerService {
       })
     });
   }
+}
 
-  private static fixDimension(o: { dimension?: Dimension | string }) {
-    // the data from the api uses strings to represent dimensions
-    // we must convert them to the enum type
-    if (typeof o.dimension === 'string') {
-      o.dimension = Dimension[o.dimension];
-    }
+function fixDimension(o: { dimension?: Dimension | string }) {
+  // the data from the api uses strings to represent dimensions
+  // we must convert them to the enum type
+  if (typeof o.dimension === 'string') {
+    o.dimension = Dimension[o.dimension];
   }
+}
 
-  private static fixUpdatedAt(o: { updatedAt?: Date | any }) {
-    if(typeof o.updatedAt === 'number' || typeof o.updatedAt === 'string') {
-      o.updatedAt = new Date(o.updatedAt);
-    }
+function fixUpdatedAt(o: { updatedAt?: Date | any }) {
+  if (typeof o.updatedAt === 'number' || typeof o.updatedAt === 'string') {
+    o.updatedAt = new Date(o.updatedAt);
   }
+}
 
-  private static fixSessionDates(o: { join?: string | number | Date, leave?: string | number | Date }) {
-    if (typeof o.join === 'string' || typeof o.join === 'number') {
-      o.join = new Date(o.join);
-    }
-    if (typeof o.leave === 'string' || typeof o.leave === 'number') {
-      o.leave = new Date(o.leave);
-    }
+function fixSessionDates(o: { join?: string | number | Date, leave?: string | number | Date }) {
+  if (typeof o.join === 'string' || typeof o.join === 'number') {
+    o.join = new Date(o.join);
+  }
+  if (typeof o.leave === 'string' || typeof o.leave === 'number') {
+    o.leave = new Date(o.leave);
   }
 }
