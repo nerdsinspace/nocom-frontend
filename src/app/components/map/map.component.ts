@@ -15,6 +15,7 @@ import { Player } from '../../models/player';
 import { ApiControllerService } from '../../services/api/api-controller.service';
 import { RxStompService } from '@stomp/ng2-stompjs';
 import { SchedulerService } from '../../services/scheduler/scheduler.service';
+import { SubscriptionTracker } from '../../models/subscription-tracker';
 import PlotlyHTMLElement = Plotly.PlotlyHTMLElement;
 import PlotlyInstance = Plotly.PlotlyInstance;
 
@@ -86,6 +87,7 @@ export class MapComponent implements OnInit, OnDestroy {
 
   private notify: NotificationService;
   private trackLock: boolean;
+  private subs = new SubscriptionTracker();
 
   private traceColors = {
     [Dimension.NETHER]: [
@@ -115,7 +117,7 @@ export class MapComponent implements OnInit, OnDestroy {
               private stomp: RxStompService,
               private scheduler: SchedulerService,
               ns: NotificationService) {
-    this.notify = ns.createProxy(this.notificationId);
+    this.notify = ns.wrap(this.notificationId);
 
     this.addMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.NETHER, color: `rgb(255, 0, 0)`}));
     this.addMarker(new Marker(MarkerType.DIMENSION, {dimension: Dimension.OVERWORLD, color: `rgb(0, 255, 0)`}));
@@ -123,10 +125,10 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.api.trackerListener().subscribe({
+    this.subs.track(this.api.trackerListener().subscribe({
       next: tracks => this.onTrackUpdate(tracks),
       error: err => console.error('failed to update tracks', err)
-    });
+    }));
 
     this.scheduler.repeating(() => this.onTick(), 2_000);
     this.scheduler.repeating(() => this.onDBSCAN(), 60_000);
@@ -136,6 +138,7 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.subs.untrackAll();
     // clear all scheduled services
     this.scheduler.clearAll();
   }

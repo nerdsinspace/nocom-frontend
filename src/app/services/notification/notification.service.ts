@@ -48,7 +48,7 @@ export class NotificationService {
     this.subject.next(new Note({id}));
   }
 
-  createProxy(id: string) {
+  wrap(id: string) {
     return new NotificationServiceProxy(this, id);
   }
 
@@ -81,7 +81,7 @@ class NotificationServiceProxy extends NotificationService {
     this.service.clear(this.id);
   }
 
-  createProxy(id: string): NotificationServiceProxy {
+  wrap(id: string): NotificationServiceProxy {
     return this;
   }
 }

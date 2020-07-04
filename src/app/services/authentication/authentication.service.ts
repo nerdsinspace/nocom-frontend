@@ -1,128 +1,166 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
-import { map } from 'rxjs/operators';
+import { filter, map, tap, throwIfEmpty } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { User } from '../../models/user';
-import { HttpError } from '../../models/http-error';
-import { Router } from '@angular/router';
+import { Observable, Subject } from 'rxjs';
 import { JsUtils } from '../../models/js-utils';
-import { JwtHelperService } from '@auth0/angular-jwt';
+import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthenticationService {
-  private jwtHelper = new JwtHelperService();
   private authenticatedUser: User;
-  private checkedStorage = false;
+  private validated = false;
+
+  readonly subject = new Subject<User | any>();
 
   constructor(private http: HttpClient, private router: Router) {
+    this.onLoginSuccess().subscribe(user => {
+      const expiration = user.expiresAt.getTime() - Date.now();
+      setTimeout(() => this.logout('Token expired'), expiration + 1000);
+    });
+
+    this.onLoginFailure().subscribe(err => router.navigateByUrl('/login'));
+
+    this.loadSession();
+
+    if (this.user == null) {
+      this.setUser(null, null, false);
+    }
   }
 
-  public login(user: string, pass: string) {
+  login(user: string, pass: string) {
     return this.http.post(`${environment.apiUrl}/login`, {}, {
       params: {
         username: user,
         password: pass
+      },
+      responseType: 'text'
+    }).pipe(
+      map(token => this.parseToken(token as string)),
+      filter(user => user != null),
+      tap(user => user.validated = true),
+      throwIfEmpty(() => new Error('Failed to parse access token!'))
+    );
+  }
+
+  logout(reason: string = 'Logged out') {
+    this.setUser(null, new Error(reason));
+  }
+
+  loadSession(debug: boolean = true): boolean {
+    if (this.user != null) {
+      if (debug) {
+        console.warn('Loading token from storage despite having non-null user');
       }
-    }).pipe(map(res => this.parseSuccessResponse(res)));
-  }
-
-  public logout() {
-    this.deleteSession();
-    this.authenticatedUser = null;
-  }
-
-  public get user(): User {
-    return this.authenticatedUser;
-  }
-
-  public isAuthorized(): boolean {
-    return this.user != null && this.user.isAuthorized();
-  }
-
-  private getBearerAuthorizationHeader(token: string): string {
-    return 'Bearer ' + token;
-  }
-
-  public getHeaderToken(): string {
-    return this.getBearerAuthorizationHeader(this.user.accessToken);
-  }
-
-  public isLoggedIn(): boolean {
-    return this.user != null;
-  }
-
-  private parseSuccessResponse(response: any): User {
-    this.authenticatedUser = User.import(response);
-    this.saveSession();
-    return this.authenticatedUser;
-  }
-
-  private parseFailureResponse(response: any): HttpError {
-    return new HttpError(response.error.message, response.error.statusCode);
-  }
-
-  private saveSession() {
-    if (this.isLoggedIn()) {
-      localStorage.setItem('JWT_TOKEN', this.user.accessToken);
-    } else {
-      this.deleteSession();
+      return true;
     }
-  }
-
-  private deleteSession() {
-    localStorage.removeItem('JWT_TOKEN');
-  }
-
-  public loadSession(authenticated?: any, unauthenticated?: any) {
-    // don't need to load session if already logged in
-    if (this.isLoggedIn()) {
-      JsUtils.call(authenticated);
-      return;
-    }
-
-    // if this is triggered, the user hasn't logged in yet
-    // but reloaded the page
-    if (this.checkedStorage) {
-      JsUtils.call(unauthenticated);
-      return;
-    }
-    // only try loading session once
-    this.checkedStorage = true;
 
     // load the authenticated user
     const token = localStorage.getItem('JWT_TOKEN');
     if (token == null) {
-      JsUtils.call(unauthenticated);
-      return;
+      // console.debug('No existing authentication token exists (this is fine)');
+      return false;
     }
 
-    const decoded = this.jwtHelper.decodeToken(token);
+    // decode the stored jwt token and check if it is valid
+    const user = this.parseToken(token);
+    if (user == null) {
+      // parseToken will print its own warning message
+      return false;
+    } else if (user.isTokenExpired()) {
+      console.warn('Token has expired');
+      return false;
+    }
 
-    this.authenticatedUser = User.import({
-      username: decoded.sub,
-      level: decoded.lvl,
-      accessToken: token
-    });
+    // this will fire async
+    if (!this.validated) {
+      this.validated = true;
+      this.http.post(`${environment.apiUrl}/validate`, {}, {
+        headers: new HttpHeaders({
+          Authorization: this.getHeaderToken()
+        })
+      }).subscribe({
+        next: () => this.user.validated = true,
+        error: () => this.logout()
+      });
+    }
 
-    // validate that this token is still valid
-    this.http.post(`${environment.apiUrl}/validate`, {}, {
-      headers: new HttpHeaders({
-        Authorization: this.getHeaderToken()
-      })
-    }).subscribe(
-      success => {
-        this.parseSuccessResponse(success);
-        JsUtils.call(authenticated);
-      },
-      error => {
-        this.deleteSession();
-        JsUtils.call(unauthenticated);
-      }
+    return true;
+  }
+
+  get user(): User {
+    return this.authenticatedUser;
+  }
+
+  isPrivileged(): boolean {
+    return this.user != null && this.user.isPrivileged();
+  }
+
+  isAuthorized(): boolean {
+    return this.user != null && !this.user.isTokenExpired();
+  }
+
+  isFullyAuthorized(): boolean {
+    return this.isAuthorized() && this.user.validated;
+  }
+
+  onLoginSuccess(): Observable<User> {
+    return this.subject.pipe(
+      filter(v => v instanceof User),
+      map(v => v as User)
     );
+  }
+
+  onLoginFailure(): Observable<any> {
+    return this.subject.pipe(filter(v => !(v instanceof User)));
+  }
+
+  getHeaderToken(): string {
+    return 'Bearer ' + this.user.accessToken;
+  }
+
+  private setUser(user: User, error?: any, check: boolean = true) {
+    if (check && this.user == user) {
+      return;
+    } else if (user != null) {
+      this.authenticatedUser = user;
+      this.saveSession();
+
+      this.subject.next(this.user);
+    } else {
+      this.authenticatedUser = null;
+      this.deleteSession();
+
+      this.subject.next(error);
+    }
+  }
+
+  private parseToken(token: string): User {
+    try {
+      JsUtils.requireNotNull(token, 'token');
+      this.setUser(User.decode(token));
+    } catch (e) {
+      console.error('Failed to parse token', e);
+
+      if (this.user != null) {
+        this.setUser(null, e);
+      }
+    }
+
+    return this.user;
+  }
+
+  private saveSession() {
+    localStorage.setItem('JWT_TOKEN', this.user.accessToken);
+  }
+
+  private deleteSession() {
+    localStorage.removeItem('JWT_TOKEN');
   }
 
   // public register(user: string, pass: string, lvl: number) {

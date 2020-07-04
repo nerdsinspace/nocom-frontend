@@ -17,4 +17,10 @@ export class JsUtils {
     }
     return null;
   }
+
+  public static requireNotNull(o: any, message?: string) {
+    if (o == null) {
+      throw new Error(`${message == null ? 'object' : message} is null`);
+    }
+  }
 }

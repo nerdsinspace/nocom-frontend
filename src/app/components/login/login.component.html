@@ -1,10 +1,14 @@
 <div class="row justify-content-center">
-  <div class="col-md-6 col-md-offset-3">
+  <div class="col-sm-auto">
     <br/>
     <form>
       <div class="form-group">
-        <div class="alert alert-danger" *ngIf="isErrored">
-           {{errorMessage}}
+        <div class="row justify-content-center">
+        <div class="col-sm-11 pb-2">
+          <div class="alert alert-danger text-center p-1 m-1" *ngIf="errorMessage != null">
+            {{errorMessage}}
+          </div>
+        </div>
         </div>
         <label for="username">Username</label>:
         <input type="text"
@@ -26,12 +30,12 @@
       </div>
       <div class="form-group">
         <div class="row justify-content-center">
-          <div class="col-sm-6 col-sm-offset-3">
+          <div class="col-sm-6">
             <input type="submit"
                    name="login-submit"
                    id="login-submit"
                    class="form-control btn btn-info"
-                   value="Log In"
+                   value="Login"
                    (click)="login()">
           </div>
         </div>

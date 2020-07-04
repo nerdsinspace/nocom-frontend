@@ -1,33 +1,28 @@
 import { JsUtils } from './js-utils';
+import { JwtHelperService } from '@auth0/angular-jwt';
+
+const jwt = new JwtHelperService();
 
 export class User {
-  constructor(private _username: string, private _level: number,
-              private _group: string, private _accessToken: string) {
+  readonly username: string;
+  readonly level: number;
+  readonly expiresAt: Date;
+  readonly accessToken: string;
+  validated: boolean = false;
+
+  constructor(o: Partial<User>, check: boolean = true) {
+    Object.assign(this, o);
+
+    if (check) {
+      JsUtils.requireNotNull(this.username, 'username');
+      JsUtils.requireNotNull(this.level, 'level');
+      JsUtils.requireNotNull(this.expiresAt, 'expiresAt');
+      JsUtils.requireNotNull(this.accessToken, 'accessToken');
+    }
   }
 
-  public get username(): string {
-    return this.username;
-  }
-
-  public get level(): number {
-    return this._level;
-  }
-
-  public get group(): string {
-    return this._group;
-  }
-
-  public get accessToken(): string {
-    return this._accessToken;
-  }
-
-  public static import(json: any): User {
-    return new User(
-      JsUtils.coalesce(json.username, json._username),
-      JsUtils.coalesce(json.level, json._level),
-      JsUtils.coalesce(json.group, json._group),
-      JsUtils.coalesce(json.token, json._accessToken, json.accessToken)
-    );
+  isTokenExpired(): boolean {
+    return this.expiresAt == null || Date.now() > this.expiresAt.getTime();
   }
 
   public isRootAuthority(): boolean {
@@ -42,7 +37,17 @@ export class User {
     return this.level >= 50;
   }
 
-  public isAuthorized(): boolean {
+  public isPrivileged(): boolean {
     return this.isDevAuthority();
+  }
+
+  static decode(token: string): User {
+    const decoded = jwt.decodeToken(token);
+    return new User({
+      username: decoded.sub,
+      level: decoded.lvl,
+      expiresAt: jwt.getTokenExpirationDate(token),
+      accessToken: token
+    })
   }
 }
