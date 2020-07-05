@@ -42,6 +42,7 @@ export class User {
   }
 
   static decode(token: string): User {
+    JsUtils.requireNotNull(token, 'Token');
     const decoded = jwt.decodeToken(token);
     return new User({
       username: decoded.sub,

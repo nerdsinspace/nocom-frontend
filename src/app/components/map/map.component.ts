@@ -173,6 +173,7 @@ export class MapComponent implements OnInit, OnDestroy {
     // clear all markers
     this.getDimensionMarkers().forEach(marker => marker.untrackPoints());
     allDimensions.forEach(d => this.trackingCount[d] = 0);
+    console.log(Object.entries(this.trackingCount));
 
     tracks.forEach(track => {
       this.trackingCount[track.dimension]++;

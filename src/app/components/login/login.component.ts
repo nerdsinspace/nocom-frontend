@@ -3,6 +3,7 @@ import { AuthenticationService } from '../../services/authentication/authenticat
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SubscriptionTracker } from '../../models/subscription-tracker';
+import { User } from '../../models/user';
 
 @Component({
   selector: 'app-login',
@@ -21,7 +22,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.subs.track(this.auth.onLoginSuccess().subscribe(user => this.errorMessage = null));
+    this.subs.track(this.auth.onLoginSuccess().subscribe(user => this.handleSuccess(user)));
     this.subs.track(this.auth.onLoginFailure().subscribe(err => this.handleError(err)));
   }
 
@@ -30,10 +31,12 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   login() {
-    this.auth.login(this.username, this.password).subscribe({
-      next: user => this.router.navigateByUrl('/'),
-      error: err => this.handleError(err)
-    });
+    this.auth.login(this.username, this.password);
+  }
+
+  private handleSuccess(user: User) {
+    this.errorMessage = null;
+    this.router.navigateByUrl('/');
   }
 
   private handleError(err) {

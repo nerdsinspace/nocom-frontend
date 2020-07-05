@@ -1,12 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
-import { filter, map, tap, throwIfEmpty } from 'rxjs/operators';
+import { filter, map, throwIfEmpty } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { User } from '../../models/user';
 import { Observable, Subject } from 'rxjs';
-import { JsUtils } from '../../models/js-utils';
 import { Router } from '@angular/router';
 
 @Injectable({
@@ -25,72 +24,65 @@ export class AuthenticationService {
     });
 
     this.onLoginFailure().subscribe(err => router.navigateByUrl('/login'));
-
-    this.loadSession();
-
-    if (this.user == null) {
-      this.setUser(null, null, false);
-    }
   }
 
-  login(user: string, pass: string) {
-    return this.http.post(`${environment.apiUrl}/login`, {}, {
+  login(user: string, pass: string): void {
+    this.http.post(`${environment.apiUrl}/login`, {}, {
       params: {
         username: user,
         password: pass
       },
       responseType: 'text'
     }).pipe(
-      map(token => this.parseToken(token as string)),
+      map(token => User.decode(token as string)),
       filter(user => user != null),
-      tap(user => user.validated = true),
       throwIfEmpty(() => new Error('Failed to parse access token!'))
-    );
+    ).subscribe({
+      next: user => {
+        user.validated = true;
+        this.setUser(user);
+      },
+      error: err => this.logout(err)
+    });
   }
 
   logout(reason: string = 'Logged out') {
     this.setUser(null, new Error(reason));
   }
 
-  loadSession(debug: boolean = true): boolean {
-    if (this.user != null) {
-      if (debug) {
-        console.warn('Loading token from storage despite having non-null user');
-      }
-      return true;
-    }
-
+  loadSession() {
     // load the authenticated user
     const token = localStorage.getItem('JWT_TOKEN');
-    if (token == null) {
+    if (token != null) {
       // console.debug('No existing authentication token exists (this is fine)');
-      return false;
+
+      // decode the stored jwt token and check if it is valid
+      try {
+        const user = User.decode(token);
+
+        if (user.isTokenExpired()) {
+          return this.logout('Token expired');
+        }
+
+        if (!this.validated) {
+          this.validated = true;
+          this.http.post(`${environment.apiUrl}/validate`, {}, {
+            headers: new HttpHeaders({
+              Authorization: this.getHeaderToken()
+            })
+          }).subscribe({
+            next: () => this.user.validated = true,
+            error: err => this.logout(err)
+          });
+        }
+        return this.setUser(user);
+      } catch (e) {
+        return this.logout(e);
+      }
     }
 
-    // decode the stored jwt token and check if it is valid
-    const user = this.parseToken(token);
-    if (user == null) {
-      // parseToken will print its own warning message
-      return false;
-    } else if (user.isTokenExpired()) {
-      console.warn('Token has expired');
-      return false;
-    }
-
-    // this will fire async
-    if (!this.validated) {
-      this.validated = true;
-      this.http.post(`${environment.apiUrl}/validate`, {}, {
-        headers: new HttpHeaders({
-          Authorization: this.getHeaderToken()
-        })
-      }).subscribe({
-        next: () => this.user.validated = true,
-        error: () => this.logout()
-      });
-    }
-
-    return true;
+    // call listeners
+    this.logout();
   }
 
   get user(): User {
@@ -124,10 +116,8 @@ export class AuthenticationService {
     return 'Bearer ' + this.user.accessToken;
   }
 
-  private setUser(user: User, error?: any, check: boolean = true) {
-    if (check && this.user == user) {
-      return;
-    } else if (user != null) {
+  private setUser(user: User, error?: any) {
+    if (user != null) {
       this.authenticatedUser = user;
       this.saveSession();
 
@@ -141,18 +131,20 @@ export class AuthenticationService {
   }
 
   private parseToken(token: string): User {
-    try {
-      JsUtils.requireNotNull(token, 'token');
-      this.setUser(User.decode(token));
-    } catch (e) {
-      console.error('Failed to parse token', e);
-
-      if (this.user != null) {
-        this.setUser(null, e);
-      }
-    }
-
-    return this.user;
+    return User.decode(token);
+    //
+    // try {
+    //   JsUtils.requireNotNull(token, 'token');
+    //   this.setUser(User.decode(token));
+    // } catch (e) {
+    //   console.error('Failed to parse token', e);
+    //
+    //   if (this.user != null) {
+    //     this.setUser(null, e);
+    //   }
+    // }
+    //
+    // return this.user;
   }
 
   private saveSession() {
