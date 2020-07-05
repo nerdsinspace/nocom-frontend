@@ -65,7 +65,7 @@ export class AuthenticationService {
         // validate the token is still accepted by the server
         this.http.post(`${environment.apiUrl}/validate`, {}, {
           headers: new HttpHeaders({
-            Authorization: this.getHeaderToken()
+            Authorization: this.getHeaderToken(token)
           })
         }).subscribe({
           next: () => this.user.validated = true,
@@ -109,8 +109,8 @@ export class AuthenticationService {
     return this.subject.pipe(filter(v => !(v instanceof User)));
   }
 
-  getHeaderToken(): string {
-    return 'Bearer ' + this.user.accessToken;
+  getHeaderToken(token: string = this.user.accessToken): string {
+    return 'Bearer ' + token;
   }
 
   private setUser(user: User, error?: any) {
@@ -125,23 +125,6 @@ export class AuthenticationService {
 
       this.subject.next(error);
     }
-  }
-
-  private parseToken(token: string): User {
-    return User.decode(token);
-    //
-    // try {
-    //   JsUtils.requireNotNull(token, 'token');
-    //   this.setUser(User.decode(token));
-    // } catch (e) {
-    //   console.error('Failed to parse token', e);
-    //
-    //   if (this.user != null) {
-    //     this.setUser(null, e);
-    //   }
-    // }
-    //
-    // return this.user;
   }
 
   private saveSession() {
