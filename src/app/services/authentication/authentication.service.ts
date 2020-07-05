@@ -13,8 +13,6 @@ import { Router } from '@angular/router';
 })
 export class AuthenticationService {
   private authenticatedUser: User;
-  private validated = false;
-
   readonly subject = new Subject<User | any>();
 
   constructor(private http: HttpClient, private router: Router) {
@@ -64,17 +62,16 @@ export class AuthenticationService {
           return this.logout('Token expired');
         }
 
-        if (!this.validated) {
-          this.validated = true;
-          this.http.post(`${environment.apiUrl}/validate`, {}, {
-            headers: new HttpHeaders({
-              Authorization: this.getHeaderToken()
-            })
-          }).subscribe({
-            next: () => this.user.validated = true,
-            error: err => this.logout(err)
-          });
-        }
+        // validate the token is still accepted by the server
+        this.http.post(`${environment.apiUrl}/validate`, {}, {
+          headers: new HttpHeaders({
+            Authorization: this.getHeaderToken()
+          })
+        }).subscribe({
+          next: () => this.user.validated = true,
+          error: err => this.logout(err)
+        });
+
         return this.setUser(user);
       } catch (e) {
         return this.logout(e);
