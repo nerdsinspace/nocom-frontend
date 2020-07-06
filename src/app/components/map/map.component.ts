@@ -64,7 +64,11 @@ export class MapComponent implements OnInit, OnDestroy {
     },
     shapes: [
       axisLine(),
-      axisLine()
+      axisLine(),
+      borderLine(30_000_000, 30_000_000, 30_000_000, -30_000_000),
+      borderLine(-30_000_000, -30_000_000, 30_000_000, -30_000_000),
+      borderLine(-30_000_000, -30_000_000, -30_000_000, 30_000_000),
+      borderLine(-30_000_000, 30_000_000, 30_000_000, 30_000_000)
     ]
   };
   public config = {
@@ -558,6 +562,24 @@ function axisLine() {
       width: 0.5
     }
   };
+}
+
+function borderLine(x1: number, y1: number, x2: number, y2: number) {
+  return {
+    type: 'line',
+    layer: 'above',
+    xref: 'x',
+    yref: 'y',
+    x0: x1,
+    y0: y1,
+    x1: x2,
+    y1: y2,
+    opacity: 1,
+    line: {
+      color: 'rgb(255,0,0)',
+      width: 1
+    }
+  }
 }
 
 function largestAbs(values: number[]): number {
