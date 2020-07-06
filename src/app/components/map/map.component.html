@@ -57,14 +57,21 @@
     </div>
   </div>
 </div>
-<div style="position: absolute; right: 0; bottom: 0; max-height: 25%; overflow-y: scroll">
+<div style="position: absolute; right: 0; bottom: 0; max-height: 25%; max-width: 20%; overflow-y: scroll">
   <ul *ngIf="playerAssociations.length > 0" class="list-group bg-transparent p-2 w-auto">
     <li *ngFor="let player of playerAssociations"
-        class="list-group-item bg-transparent d-flex justify-content-between align-items-center py-1 px-1">
-      <span class="pr-2">{{player.username}}</span>
-      <span class="badge badge-pill {{getAssociationColorClass(player)}}">
-        {{player.strength.toFixed(2)}}
-      </span>
+        class="list-group-item bg-transparent d-flex justify-content-between align-items-center p-1">
+      <div class="justify-content-start pr-2">
+        <span title="{{getPlayerHoverText(player)}}"
+              (mouseover)="setPlayerHoverText(player)"
+              [ngClass]="{'dot-online': player.online, 'dot-offline': !player.online}"></span>
+      </div>
+      <div class="justify-content-end">
+        <span class="pr-2">{{player.username}}</span>
+        <span class="badge badge-pill {{getAssociationColorClass(player)}}">
+          {{player.strength.toFixed(1)}}
+        </span>
+      </div>
     </li>
   </ul>
 </div>

@@ -16,6 +16,7 @@ import { ApiControllerService } from '../../services/api/api-controller.service'
 import { RxStompService } from '@stomp/ng2-stompjs';
 import { SchedulerService } from '../../services/scheduler/scheduler.service';
 import { SubscriptionTracker } from '../../models/subscription-tracker';
+import * as moment from 'moment';
 import PlotlyHTMLElement = Plotly.PlotlyHTMLElement;
 import PlotlyInstance = Plotly.PlotlyInstance;
 
@@ -173,7 +174,6 @@ export class MapComponent implements OnInit, OnDestroy {
     // clear all markers
     this.getDimensionMarkers().forEach(marker => marker.untrackPoints());
     allDimensions.forEach(d => this.trackingCount[d] = 0);
-    console.log(Object.entries(this.trackingCount));
 
     tracks.forEach(track => {
       this.trackingCount[track.dimension]++;
@@ -255,7 +255,10 @@ export class MapComponent implements OnInit, OnDestroy {
     clusters.forEach(cluster => {
       if (cluster.updatedAt != null) {
         const i = markerTimings.put(cluster);
-        markerTimings.text[i] = cluster.updatedAt.toLocaleString();
+        markerTimings.text[i] = cluster.updatedAt.toLocaleString()
+          + ' ('
+          + moment(cluster.updatedAt).fromNow(false)
+          + ')';
       } else {
         marker.put(cluster);
       }
@@ -287,7 +290,16 @@ export class MapComponent implements OnInit, OnDestroy {
     return await this.redrawGraph();
   }
 
-  onClusterAssociations(players: Player[]) {
+  async onClusterAssociations(players: Player[]) {
+    const sessions = await this.api.getPlayersLatestSession(players.map(pl => pl.uuid), '2b2t.org').toPromise();
+
+    sessions.forEach(session => {
+      const pl = players.find(p => p.uuid === session.uuid);
+      pl.online = session.leave == null;
+      pl.join = session.join;
+      pl.leave = session.leave;
+    });
+
     this.playerAssociations = players;
   }
 
@@ -498,6 +510,25 @@ export class MapComponent implements OnInit, OnDestroy {
     } else {
       return 'badge-danger';
     }
+  }
+
+  formatPlayerSession(player: Player): string {
+    const time = player.leave == null ? player.join : player.leave;
+    if (time == null) {
+      return 'No join or leave date';
+    }
+    return (player.online ? 'Seen on ' : 'Last seen on ') + time.toLocaleString()
+      + ' ('
+      + moment(time).toNow(true) + ' ago'
+      + ')';
+  }
+
+  setPlayerHoverText(player: any): void {
+    player._hoverText = this.formatPlayerSession(player);
+  }
+
+  getPlayerHoverText(player: any): string {
+    return player._hoverText;
   }
 }
 

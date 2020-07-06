@@ -1,0 +1,17 @@
+.dot-online {
+  height: 10px;
+  width: 10px;
+  background-color: green;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.dot-offline {
+  height: 10px;
+  width: 10px;
+  background-color: red;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+}

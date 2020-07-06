@@ -8,7 +8,7 @@ import { Observable } from 'rxjs';
 import { Player } from '../../models/player';
 import { TrackHistory } from '../../models/track-history';
 import { PlayerStatus } from '../../models/player-status';
-import { SessionGroup } from '../../models/player-session';
+import { PlayerSession, SessionGroup } from '../../models/player-session';
 import { Track } from '../../models/track';
 import { RxStompService } from '@stomp/ng2-stompjs';
 
@@ -62,7 +62,7 @@ export class ApiControllerService {
       }
     }).pipe(
       map(response => response as TrackHistory[]),
-      tap(history => history.forEach(track => fixDimension(track)))
+      tap(history => history.forEach(fixDimension))
     )
   }
 
@@ -77,7 +77,7 @@ export class ApiControllerService {
       );
   }
 
-  getPlayerSessions(playerUuids: string[], server?: string, since?: number): Observable<SessionGroup[]> {
+  getPlayerSessions(playerUuids: string[], server: string, since?: number): Observable<SessionGroup[]> {
     return this.http.post(`${environment.apiUrl}/api/player-sessions`, null, {
       params: {
         playerUuids: playerUuids,
@@ -87,8 +87,30 @@ export class ApiControllerService {
     }).pipe(
       map(body => body as SessionGroup[]),
       filter(groups => groups.length > 0),
-      tap(groups => groups.forEach(group => group.sessions.forEach(session => fixSessionDates(session))))
+      tap(groups => groups.forEach(group => group.sessions.forEach(fixSessionDates)))
     )
+  }
+
+  getPlayersOnline(playerUuids: string[], server: string): Observable<PlayerSession[]> {
+    return this.http.post(`${environment.apiUrl}/api/players-online`, playerUuids, {
+      params: {
+        server: server
+      }
+    }).pipe(
+      map(body => body as PlayerSession[]),
+      tap(sessions => sessions.forEach(fixSessionDates))
+    );
+  }
+
+  getPlayersLatestSession(playerUuids: string[], server: string): Observable<PlayerSession[]> {
+    return this.http.post(`${environment.apiUrl}/api/players-latest-session`, playerUuids, {
+      params: {
+        server: server
+      }
+    }).pipe(
+      map(body => body as PlayerSession[]),
+      tap(sessions => sessions.forEach(fixSessionDates))
+    );
   }
 
   trackerListener(): Observable<Track[]> {
@@ -97,7 +119,7 @@ export class ApiControllerService {
         // parse response body and cast it to a track model
         map(res => JSON.parse(res.body) as Track[]),
         // fix track data having wrong types
-        tap(tracks => tracks.forEach(track => fixDimension(track)))
+        tap(tracks => tracks.forEach(fixDimension))
       );
   }
 
