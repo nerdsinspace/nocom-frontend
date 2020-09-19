@@ -1,36 +1,52 @@
 #!groovy
 
 node {
-  try {
-    // Checkout the proper revision into the workspace.
-    stage('checkout') {
-      checkout scm
-    }
+  final isMaster = 'master' == env.BRANCH_NAME
+  def dockerfile
 
-    // Execute `cibuild` wrapped within a plugin that translates
-    // ANSI color codes to something that renders inside the Jenkins
-    // console.
-    stage('cibuild') {
+  // Checkout the proper revision into the workspace.
+  stage('checkout') {
+    checkout scm
+  }
+
+  docker.withRegistry('https://registry.gitlab.com/', 'gitlab-deploy-token_nocom-frontend') {
+    stage('build') {
       wrap([$class: 'AnsiColorBuildWrapper']) {
-        sh './scripts/cibuild'
-        archiveArtifacts artifacts: 'dist/*', fingerprint: true
+        dockerfile = docker.build 'nerdsinc/nocom-frontend'
       }
     }
 
-    withCredentials([usernamePassword(credentialsId: 'nocom-frontend-gitlab-docker-registry', passwordVariable: 'GITLAB_PASSWORD', usernameVariable: 'GITLAB_USER')]) {
-      stage('cipublish') {
+    stage('publish') {
+      if (isMaster) {
         wrap([$class: 'AnsiColorBuildWrapper']) {
-          sh './scripts/cipublish'
+          dockerfile.push()
+        }
+      } else {
+        echo "Not publishing $env.BRANCH_NAME"
+      }
+    }
+  }
+
+  stage('deploy') {
+    if (isMaster) {
+      wrap([$class: 'AnsiColorBuildWrapper']) {
+        dir('deployment') {
+          sh 'ansible-galaxy install -r roles.yml'
+
+          withCredentials([
+            string(credentialsId: 'sudo-password_nocomvm-deployer', variable: 'ANSIBLE_SUDO_PASS'),
+            usernamePassword(credentialsId: 'gitlab-deploy-token_nocom-frontend', usernameVariable: 'GITLAB_DEPLOY_TOKEN_USERNAME', passwordVariable: 'GITLAB_DEPLOY_TOKEN_PASSWORD'),
+          ]) {
+            ansiblePlaybook(
+              playbook: 'playbook.yml',
+              credentialsId: 'ssh-private-key_nocomvm',
+              colorized: true
+            )
+          }
         }
       }
+    } else {
+      echo "Not deploying $env.BRANCH_NAME"
     }
-  } catch (err) {
-    // Re-raise the exception so that the failure is propagated to
-    // Jenkins.
-    throw err
-  } finally {
-    // Pass or fail, ensure that the services and networks
-    // created by Docker Compose are torn down.
-    sh 'docker-compose -f docker-compose.ci.yml down -v'
   }
 }

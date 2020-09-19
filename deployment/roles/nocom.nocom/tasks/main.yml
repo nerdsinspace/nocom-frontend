@@ -1,0 +1,43 @@
+---
+- name: Create working directory
+  file:
+    path: "/opt/nocom-frontend"
+    state: directory
+    owner: deployer
+    group: deployer
+    mode: 0755
+
+- name: Copy files to working directory
+  copy:
+    src: ./
+    dest: /opt/nocom-frontend
+    owner: deployer
+    group: deployer
+    mode: 0664
+
+- name: Login to docker repository
+  docker_login:
+    registry: registry.gitlab.com
+    username: "{{ gitlab_deploy_token_username }}"
+    password: "{{ gitlab_deploy_token_password }}"
+
+- name: Pull docker image
+  docker_image:
+    name: registry.gitlab.com/nerdsinc/nocom-frontend:latest
+    source: pull
+
+- name: Logout of docker repository
+  docker_login:
+    registry: registry.gitlab.com
+    state: absent
+
+- name: Recreate the docker service
+  docker_compose:
+    project_src: /opt/nocom-frontend
+    project_name: nocom-frontend
+    services:
+      - nocom-frontend
+    state: present
+    recreate: smart
+    pull: no
+    remove_orphans: yes

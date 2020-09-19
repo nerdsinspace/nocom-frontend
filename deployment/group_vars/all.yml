@@ -1,0 +1,11 @@
+---
+ansible_install_method: apt
+#ansible_install_version_pip: ""
+
+docker_edition: "ce"
+docker_package_state: "present"
+docker_users:
+  - "deployer"
+
+docker_install_compose: true
+#docker_compose_version: ""

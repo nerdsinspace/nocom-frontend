@@ -1,0 +1,2 @@
+[nocomvm]
+nocomvm ansible_port=6969 ansible_host=fiki.dev ansible_user=deployer become=yes

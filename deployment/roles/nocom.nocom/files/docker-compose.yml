@@ -1,0 +1,12 @@
+version: '2.4'
+services:
+  nocom-frontend:
+    image: registry.gitlab.com/nerdsinc/nocom-frontend:latest
+    restart: unless-stopped
+    hostname: frontend
+    extra_hosts:
+      - "api_server:10.10.69.2"
+    ports:
+      - "8089:80"
+    volumes:
+      - ./config:/etc/nginx/conf.d:Z
