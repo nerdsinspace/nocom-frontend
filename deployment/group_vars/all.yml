@@ -1,5 +1,5 @@
 ---
-ansible_install_method: apt
+ansible_install_method: pip
 #ansible_install_version_pip: ""
 
 docker_edition: "ce"

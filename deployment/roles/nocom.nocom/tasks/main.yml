@@ -1,19 +1,28 @@
 ---
 - name: Create working directory
   file:
-    path: "/opt/nocom-frontend"
+    path: "{{ nocom_workdir }}"
     state: directory
-    owner: deployer
-    group: deployer
+    owner: "{{ nocom_user }}"
+    group: "{{ nocom_group }}"
     mode: 0755
 
 - name: Copy files to working directory
   copy:
     src: ./
-    dest: /opt/nocom-frontend
-    owner: deployer
-    group: deployer
+    dest: "{{ nocom_workdir }}"
+    owner: "{{ nocom_user }}"
+    group: "{{ nocom_group }}"
     mode: 0664
+
+- name: Install docker-compose.yml
+  template:
+    src: "docker-compose.yml.j2"
+    dest: "{{ nocom_workdir }}/docker-compose.yml"
+    owner: "{{ nocom_user }}"
+    group: "{{ nocom_group }}"
+    mode: 0664
+  notify: restart nginx
 
 - name: Login to docker repository
   docker_login:
@@ -23,7 +32,7 @@
 
 - name: Pull docker image
   docker_image:
-    name: registry.gitlab.com/nerdsinc/nocom-frontend:latest
+    name: "registry.gitlab.com/{{ nocom_docker_image_name }}:latest"
     source: pull
 
 - name: Logout of docker repository
@@ -33,10 +42,10 @@
 
 - name: Recreate the docker service
   docker_compose:
-    project_src: /opt/nocom-frontend
-    project_name: nocom-frontend
+    project_src: "{{ nocom_workdir }}"
+    project_name: "{{ nocom_project_name }}"
     services:
-      - nocom-frontend
+      - "{{ nocom_project_name }}"
     state: present
     recreate: smart
     pull: no

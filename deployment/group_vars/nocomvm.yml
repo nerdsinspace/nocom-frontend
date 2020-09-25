@@ -1,5 +1,10 @@
 ---
-ansible_become_pass: "{{ lookup('env','ANSIBLE_SUDO_PASS') }}"
+nocom_project_name: "nocom-frontend"
+nocom_workdir: "/opt/{{ nocom_project_name }}"
+nocom_user: "nocom"
+nocom_group: "nocom"
+nocom_docker_image_name: "nerdsinc/{{ nocom_project_name }}"
+nocom_api_server_addressv4: "10.10.69.2"
 
 gitlab_deploy_token_username: "{{ lookup('env','GITLAB_DEPLOY_TOKEN_USERNAME') }}"
 gitlab_deploy_token_password: "{{ lookup('env','GITLAB_DEPLOY_TOKEN_PASSWORD') }}"

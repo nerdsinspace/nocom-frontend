@@ -6,11 +6,6 @@
     - name: Update APT cache
       apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
 
-  vars:
-    pip_install_packages:
-      - name: docker
-      - name: docker-compose
-
   roles:
     - { role: nocom.ansible }
     - { role: nocom.docker }
