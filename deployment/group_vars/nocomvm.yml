@@ -1,8 +1,8 @@
 ---
 nocom_project_name: "nocom-frontend"
 nocom_workdir: "/opt/{{ nocom_project_name }}"
-nocom_user: "nocom"
-nocom_group: "nocom"
+nocom_user: "deployer"
+nocom_group: "deployer"
 nocom_docker_image_name: "nerdsinc/{{ nocom_project_name }}"
 nocom_api_server_addressv4: "10.10.69.2"
 
