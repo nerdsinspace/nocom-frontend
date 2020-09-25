@@ -35,7 +35,11 @@ node {
 
           withCredentials([
             string(credentialsId: 'sudo-password_nocomvm-deployer', variable: 'ANSIBLE_SUDO_PASS'),
-            usernamePassword(credentialsId: 'gitlab-deploy-token_nocom-frontend', usernameVariable: 'GITLAB_DEPLOY_TOKEN_USERNAME', passwordVariable: 'GITLAB_DEPLOY_TOKEN_PASSWORD'),
+            usernamePassword(
+              credentialsId: 'gitlab-deploy-token_nocom-frontend',
+              usernameVariable: 'GITLAB_DEPLOY_TOKEN_USERNAME',
+              passwordVariable: 'GITLAB_DEPLOY_TOKEN_PASSWORD'
+            )
           ]) {
             ansiblePlaybook(
               playbook: 'playbook.yml',
