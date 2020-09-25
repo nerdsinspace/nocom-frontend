@@ -22,7 +22,6 @@
     owner: "{{ nocom_user }}"
     group: "{{ nocom_group }}"
     mode: 0664
-  notify: restart nginx
 
 - name: Login to docker repository
   docker_login:
