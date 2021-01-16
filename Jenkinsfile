@@ -12,7 +12,7 @@ node {
   docker.withRegistry('https://registry.gitlab.com/', 'gitlab-deploy-token_nocom-frontend') {
     stage('build') {
       wrap([$class: 'AnsiColorBuildWrapper']) {
-        dockerfile = docker.build('nerdsinc/nocom-frontend', '--no-cache --rm --pull')
+        dockerfile = docker.build('nerdsinc/nocom-frontend', '--no-cache --rm --pull', '.')
       }
     }
 
