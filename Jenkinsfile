@@ -27,30 +27,30 @@ node {
     }
   }
 
-  stage('deploy') {
-    if (isMaster) {
-      wrap([$class: 'AnsiColorBuildWrapper']) {
-        dir('deployment') {
-          sh 'ansible-galaxy install -r roles.yml'
-
-          withCredentials([
-            string(credentialsId: 'sudo-password_nocomvm-deployer', variable: 'ANSIBLE_SUDO_PASS'),
-            usernamePassword(
-              credentialsId: 'gitlab-deploy-token_nocom-frontend',
-              usernameVariable: 'GITLAB_DEPLOY_TOKEN_USERNAME',
-              passwordVariable: 'GITLAB_DEPLOY_TOKEN_PASSWORD'
-            )
-          ]) {
-            ansiblePlaybook(
-              playbook: 'playbook.yml',
-              credentialsId: 'ssh-private-key_nocomvm',
-              colorized: true
-            )
-          }
-        }
-      }
-    } else {
-      echo "Not deploying $env.BRANCH_NAME"
-    }
-  }
+//  stage('deploy') {
+//    if (isMaster) {
+//      wrap([$class: 'AnsiColorBuildWrapper']) {
+//        dir('deployment') {
+//          sh 'ansible-galaxy install -r roles.yml'
+//
+//          withCredentials([
+//            string(credentialsId: 'sudo-password_nocomvm-deployer', variable: 'ANSIBLE_SUDO_PASS'),
+//            usernamePassword(
+//              credentialsId: 'gitlab-deploy-token_nocom-frontend',
+//              usernameVariable: 'GITLAB_DEPLOY_TOKEN_USERNAME',
+//              passwordVariable: 'GITLAB_DEPLOY_TOKEN_PASSWORD'
+//            )
+//          ]) {
+//            ansiblePlaybook(
+//              playbook: 'playbook.yml',
+//              credentialsId: 'ssh-private-key_nocomvm',
+//              colorized: true
+//            )
+//          }
+//        }
+//      }
+//    } else {
+//      echo "Not deploying $env.BRANCH_NAME"
+//    }
+//  }
 }

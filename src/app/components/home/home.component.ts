@@ -35,7 +35,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     },
     yaxis: {
       tickvals: [],
-      fixedrange: true
+      fixedrange: true,
+      type: 'category'
     }
   };
   config = {
