@@ -28,7 +28,12 @@
   <app-notification id="{{notificationId}}"></app-notification>
 </div>
 <div style="position: fixed; bottom: 0; left: 0">
-  <div class="input-group p-2">
+  <div class="input-group pl-2 pb-1">
+    <input type="number" class="form-control form-control-sm bg-transparent"
+           data-toggle="tooltip" data-placement="top" title="Limit XZ coordinate distance"
+           [ngModel]="maxRadius" (ngModelChange)="onMaxRadiusChange($event)">
+  </div>
+  <div class="input-group pl-2 pb-2">
     <input type="text" class="form-control form-control-sm" readonly
            data-toggle="tooltip" data-placement="top" title="Selected XZ coordinate"
            value="{{selectedCoordinate}}">

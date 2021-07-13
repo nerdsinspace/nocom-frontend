@@ -89,6 +89,7 @@ export class MapComponent implements OnInit, OnDestroy {
   public selectedOffsetCoordinate = '0 0';
   public selectedNetherCoord = false;
   public playerAssociations = [] as Player[];
+  public maxRadius = 0;
 
   private notify: NotificationService;
   private trackLock: boolean;
@@ -179,19 +180,21 @@ export class MapComponent implements OnInit, OnDestroy {
     this.getDimensionMarkers().forEach(marker => marker.untrackPoints());
     allDimensions.forEach(d => this.trackingCount[d] = 0);
 
-    tracks.forEach(track => {
-      this.trackingCount[track.dimension]++;
+    tracks
+      .filter(track => !this.isHitOutsideMaxRadius(track))
+      .forEach(track => {
+        this.trackingCount[track.dimension]++;
 
-      const marker = this.getMarkerByDimension(track.dimension);
-      marker.put(track);
-      marker.uirevision++;
+        const marker = this.getMarkerByDimension(track.dimension);
+        marker.put(track);
+        marker.uirevision++;
 
-      const traceMarker = this.getMarkersByType(MarkerType.TRACE)
-        .find(m => m.trackId === track.trackId);
-      if (traceMarker != null) {
-        traceMarker.put(track, true);
-      }
-    });
+        const traceMarker = this.getMarkersByType(MarkerType.TRACE)
+          .find(m => m.trackId === track.trackId);
+        if (traceMarker != null) {
+          traceMarker.put(track, true);
+        }
+      });
 
     this.getDimensionMarkers().forEach(marker => marker.deleteUntracked());
 
@@ -256,17 +259,19 @@ export class MapComponent implements OnInit, OnDestroy {
     const marker = new Marker(MarkerType.DBSCAN, {color: 'rgb(255,0,255)'});
     const markerTimings = new Marker(MarkerType.DBSCAN, {color: 'rgb(100,100,255)'});
 
-    clusters.forEach(cluster => {
-      if (cluster.updatedAt != null) {
-        const i = markerTimings.put(cluster);
-        markerTimings.text[i] = cluster.updatedAt.toLocaleString()
-          + ' ('
-          + moment(cluster.updatedAt).fromNow(false)
-          + ')';
-      } else {
-        marker.put(cluster);
-      }
-    });
+    clusters
+      .filter(cluster => !this.isHitOutsideMaxRadius(cluster))
+      .forEach(cluster => {
+        if (cluster.updatedAt != null) {
+          const i = markerTimings.put(cluster);
+          markerTimings.text[i] = cluster.updatedAt.toLocaleString()
+            + ' ('
+            + moment(cluster.updatedAt).fromNow(false)
+            + ')';
+        } else {
+          marker.put(cluster);
+        }
+      });
 
     this.addMarker(marker);
     this.addMarker(markerTimings);
@@ -422,6 +427,34 @@ export class MapComponent implements OnInit, OnDestroy {
 
   onSelected(event) {
     // console.log(event);
+  }
+
+  private updateRadiusEvent;
+
+  onMaxRadiusChange(event) {
+    if (this.updateRadiusEvent != null) {
+      clearTimeout(this.updateRadiusEvent);
+    }
+
+    this.updateRadiusEvent = setTimeout(() => {
+      this.maxRadius = event;
+      this.onDBSCAN();
+      this.updateRadiusEvent = null;
+    }, 500);
+  }
+
+  private isOutsideMaxRadius(x: number, z: number, dimension?: Dimension): boolean {
+    if (this.maxRadius <= 0) {
+      return false;
+    }
+
+    x = dimension === Dimension.NETHER ? (x * 8) : x;
+    z = dimension === Dimension.NETHER ? (z * 8) : z;
+    return Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2)) > this.maxRadius;
+  }
+
+  private isHitOutsideMaxRadius(hit: Hit): boolean {
+    return this.isOutsideMaxRadius(hit.x, hit.z, hit.dimension);
   }
 
   private reboundDiagonals(xs: number[], ys: number[]) {
