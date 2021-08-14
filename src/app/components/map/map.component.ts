@@ -280,12 +280,23 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   async onDeepDBSCAN(root: Cluster) {
+    const minXY = {x: null, y: null};
+    const maxXY = {x: null, y: null};
+
+    const max = (v: number, c: number) => c == null ? v : Math.max(v, c);
+    const min = (v: number, c: number) => c == null ? v : Math.min(v, c);
+
     // clear previous markers
     this.removeMarkers(MarkerType.DBSCAN_TRACE);
 
     const marker = new Marker(MarkerType.DBSCAN_TRACE, {color: 'rgb(255,100,200)', dimension: root.dimension});
 
     root.leafs.forEach(leaf => {
+      minXY.x = min(leaf.x, minXY.x);
+      minXY.y = min(leaf.z, minXY.y);
+      maxXY.x = max(leaf.x, maxXY.x);
+      maxXY.y = max(leaf.z, maxXY.y);
+  
       marker.put(leaf);
     });
 
@@ -295,6 +306,10 @@ export class MapComponent implements OnInit, OnDestroy {
       next: players => this.onClusterAssociations(players),
       error: err => console.error('failed to get cluster associations', err)
     });
+
+    const scale = 1024;
+    this.layout.xaxis.range = [minXY.x - scale, maxXY.x + scale];
+    this.layout.yaxis.range = [minXY.y - scale, maxXY.y + scale];
 
     return await this.redrawGraph();
   }
