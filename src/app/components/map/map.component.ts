@@ -372,23 +372,27 @@ export class MapComponent implements OnInit, OnDestroy {
       }
       case MarkerType.DBSCAN: {
         const cluster: Cluster = hit as Cluster;
-        const message = this.notify.publishInform(`Looking up child nodes for node #${cluster.id}`, true);
-
-        this.trackLock = true;
-
-        this.api.getClusterChildren(cluster.id).subscribe({
-          next: _cluster => this.onDeepDBSCAN(_cluster),
-          error: err => console.error(err),
-          complete: () => {
-            this.trackLock = false;
-            message.remove(2500);
-          }
-        });
+        this.plotlyClickedCluster(cluster.id);
         break;
       }
       default:
         console.log('unsupported');
     }
+  }
+
+  plotlyClickedCluster(clusterId: number) {
+    const message = this.notify.publishInform(`Looking up child nodes for node #${clusterId}`, true);
+
+    this.trackLock = true;
+
+    this.api.getClusterChildren(clusterId).subscribe({
+      next: _cluster => this.onDeepDBSCAN(_cluster),
+      error: err => console.error(err),
+      complete: () => {
+        this.trackLock = false;
+        message.remove(2500);
+      }
+    });
   }
 
   onClicked(event) {
