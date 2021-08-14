@@ -556,12 +556,12 @@ export class MapComponent implements OnInit, OnDestroy {
     this.data = this.data.filter(marker => marker.markerType !== type);
   }
 
-  getAssociationColorClass(player: Player) {
-    if (player.strength >= 3) {
+  getAssociationColorClass(strength: number) {
+    if (strength >= 3) {
       return 'badge-success';
-    } else if (player.strength >= 2) {
+    } else if (strength >= 2) {
       return 'badge-primary';
-    } else if (player.strength >= 1) {
+    } else if (strength >= 1) {
       return 'badge-warning';
     } else {
       return 'badge-danger';
