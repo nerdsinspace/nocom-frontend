@@ -19,6 +19,8 @@ import { SubscriptionTracker } from '../../models/subscription-tracker';
 import * as moment from 'moment';
 import PlotlyHTMLElement = Plotly.PlotlyHTMLElement;
 import PlotlyInstance = Plotly.PlotlyInstance;
+import { Association } from 'src/app/models/association';
+import { NgForm } from '@angular/forms';
 
 @Component({
   selector: 'app-map',
@@ -89,6 +91,8 @@ export class MapComponent implements OnInit, OnDestroy {
   public selectedOffsetCoordinate = '0 0';
   public selectedNetherCoord = false;
   public playerAssociations = [] as Player[];
+  public associations = [] as Association[];
+  public selectedAssociationIndex: number = null;
   public maxRadius = 0;
 
   private notify: NotificationService;
@@ -327,6 +331,18 @@ export class MapComponent implements OnInit, OnDestroy {
     this.playerAssociations = players;
   }
 
+  onPlayerSearch(form: NgForm) {
+    this.associations.length = 0;
+    this.selectedAssociationIndex = null;
+
+    this.api.getPlayerAssociations(form.value.search).subscribe({
+      next: associations => {
+        this.associations = associations;
+      },
+      error: err => console.error('failed to get player associations', err)
+    });
+  }
+
   onPlotlyClicked(data: any) {
     if (this.trackLock) {
       this.notify.publishWarning('Currently handling another request');
@@ -352,6 +368,9 @@ export class MapComponent implements OnInit, OnDestroy {
     }
 
     this.playerAssociations.length = 0;
+    this.associations.length = 0;
+    this.selectedAssociationIndex = null;
+
     this.selectedNetherCoord = JsUtils.coalesce(hit.dimension, marker.dimension, Dimension.OVERWORLD) === Dimension.NETHER;
     this.selectedCoordinate = hit.x + ' ' + hit.z;
 
