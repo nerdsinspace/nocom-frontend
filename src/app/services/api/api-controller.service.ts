@@ -6,6 +6,7 @@ import { filter, map, tap } from 'rxjs/operators';
 import { Cluster } from '../../models/cluster';
 import { Observable } from 'rxjs';
 import { Player } from '../../models/player';
+import { Association } from '../../models/association';
 import { TrackHistory } from '../../models/track-history';
 import { PlayerStatus } from '../../models/player-status';
 import { PlayerSession, SessionGroup } from '../../models/player-session';
@@ -52,6 +53,14 @@ export class ApiControllerService {
       }
     }).pipe(map(response => response as Player[]));
   }
+
+  getPlayerAssociations(playerUsername: string): Observable<Association[]> {
+    return this.http.post(`${environment.apiUrl}/api/player-associations`, null, {
+      params: {
+        playerUsername: playerUsername
+      }
+  }).pipe(map(response => response as Association[]));
+}
 
   getTrackHistory(trackId: number, max?: number, aggregationMs: number = 10_000): Observable<TrackHistory[]> {
     return this.http.post(`${environment.apiUrl}/api/full-track-history`, null, {

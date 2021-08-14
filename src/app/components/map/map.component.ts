@@ -19,6 +19,8 @@ import { SubscriptionTracker } from '../../models/subscription-tracker';
 import * as moment from 'moment';
 import PlotlyHTMLElement = Plotly.PlotlyHTMLElement;
 import PlotlyInstance = Plotly.PlotlyInstance;
+import { Association } from 'src/app/models/association';
+import { NgForm } from '@angular/forms';
 
 @Component({
   selector: 'app-map',
@@ -89,6 +91,8 @@ export class MapComponent implements OnInit, OnDestroy {
   public selectedOffsetCoordinate = '0 0';
   public selectedNetherCoord = false;
   public playerAssociations = [] as Player[];
+  public associations = [] as Association[];
+  public selectedAssociationIndex: number = null;
   public maxRadius = 0;
 
   private notify: NotificationService;
@@ -280,12 +284,23 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   async onDeepDBSCAN(root: Cluster) {
+    const minXY = {x: null, y: null};
+    const maxXY = {x: null, y: null};
+
+    const max = (v: number, c: number) => c == null ? v : Math.max(v, c);
+    const min = (v: number, c: number) => c == null ? v : Math.min(v, c);
+
     // clear previous markers
     this.removeMarkers(MarkerType.DBSCAN_TRACE);
 
     const marker = new Marker(MarkerType.DBSCAN_TRACE, {color: 'rgb(255,100,200)', dimension: root.dimension});
 
     root.leafs.forEach(leaf => {
+      minXY.x = min(leaf.x, minXY.x);
+      minXY.y = min(leaf.z, minXY.y);
+      maxXY.x = max(leaf.x, maxXY.x);
+      maxXY.y = max(leaf.z, maxXY.y);
+  
       marker.put(leaf);
     });
 
@@ -295,6 +310,10 @@ export class MapComponent implements OnInit, OnDestroy {
       next: players => this.onClusterAssociations(players),
       error: err => console.error('failed to get cluster associations', err)
     });
+
+    const scale = 1024;
+    this.layout.xaxis.range = [minXY.x - scale, maxXY.x + scale];
+    this.layout.yaxis.range = [minXY.y - scale, maxXY.y + scale];
 
     return await this.redrawGraph();
   }
@@ -310,6 +329,18 @@ export class MapComponent implements OnInit, OnDestroy {
     });
 
     this.playerAssociations = players;
+  }
+
+  onPlayerSearch(form: NgForm) {
+    this.associations.length = 0;
+    this.selectedAssociationIndex = null;
+
+    this.api.getPlayerAssociations(form.value.search).subscribe({
+      next: associations => {
+        this.associations = associations;
+      },
+      error: err => console.error('failed to get player associations', err)
+    });
   }
 
   onPlotlyClicked(data: any) {
@@ -337,6 +368,9 @@ export class MapComponent implements OnInit, OnDestroy {
     }
 
     this.playerAssociations.length = 0;
+    this.associations.length = 0;
+    this.selectedAssociationIndex = null;
+
     this.selectedNetherCoord = JsUtils.coalesce(hit.dimension, marker.dimension, Dimension.OVERWORLD) === Dimension.NETHER;
     this.selectedCoordinate = hit.x + ' ' + hit.z;
 
@@ -357,23 +391,27 @@ export class MapComponent implements OnInit, OnDestroy {
       }
       case MarkerType.DBSCAN: {
         const cluster: Cluster = hit as Cluster;
-        const message = this.notify.publishInform(`Looking up child nodes for node #${cluster.id}`, true);
-
-        this.trackLock = true;
-
-        this.api.getClusterChildren(cluster.id).subscribe({
-          next: _cluster => this.onDeepDBSCAN(_cluster),
-          error: err => console.error(err),
-          complete: () => {
-            this.trackLock = false;
-            message.remove(2500);
-          }
-        });
+        this.plotlyClickedCluster(cluster.id);
         break;
       }
       default:
         console.log('unsupported');
     }
+  }
+
+  plotlyClickedCluster(clusterId: number) {
+    const message = this.notify.publishInform(`Looking up child nodes for node #${clusterId}`, true);
+
+    this.trackLock = true;
+
+    this.api.getClusterChildren(clusterId).subscribe({
+      next: _cluster => this.onDeepDBSCAN(_cluster),
+      error: err => console.error(err),
+      complete: () => {
+        this.trackLock = false;
+        message.remove(2500);
+      }
+    });
   }
 
   onClicked(event) {
@@ -537,12 +575,12 @@ export class MapComponent implements OnInit, OnDestroy {
     this.data = this.data.filter(marker => marker.markerType !== type);
   }
 
-  getAssociationColorClass(player: Player) {
-    if (player.strength >= 3) {
+  getAssociationColorClass(strength: number) {
+    if (strength >= 3) {
       return 'badge-success';
-    } else if (player.strength >= 2) {
+    } else if (strength >= 2) {
       return 'badge-primary';
-    } else if (player.strength >= 1) {
+    } else if (strength >= 1) {
       return 'badge-warning';
     } else {
       return 'badge-danger';

@@ -24,6 +24,28 @@
     <span class="badge badge-pill badge-info">{{trackingCount.sum()}}</span>
   </div>
 </div>
+
+<div style="position:absolute; top: 80px; right: 12px" class="p-1">
+  <form #f="ngForm" (ngSubmit)="onPlayerSearch(f)" novalidate class="form-inline">
+    <input name="search" ngModel required #first="ngModel" class="form-control" type="search"
+      placeholder="Player Search">
+  </form>
+
+  <div style="position: absolute; max-height: 50vh; width: 100%; overflow-y: scroll">
+    <div *ngIf="associations.length > 0" class="list-group">
+      <a *ngFor="let association of associations; let i = index"
+        [class.active]="selectedAssociationIndex === i" 
+        (click)="plotlyClickedCluster(association.clusterId); selectedAssociationIndex = i"
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-2">
+        {{association.lastSeen | date}}
+        <span class="badge badge-primary {{getAssociationColorClass(association.strength)}}">
+          {{association.strength.toFixed(1)}}
+        </span>
+      </a>
+    </div>
+  </div>
+</div>
+
 <div class="container-sm text-sm m-0 p-0 w-auto" style="position: absolute; left: 0; top: 56px" id="note-container">
   <app-notification id="{{notificationId}}"></app-notification>
 </div>
@@ -73,7 +95,7 @@
       </div>
       <div class="justify-content-end">
         <span class="pr-2">{{player.username}}</span>
-        <span class="badge badge-pill {{getAssociationColorClass(player)}}">
+        <span class="badge badge-pill {{getAssociationColorClass(player.strength)}}">
           {{player.strength.toFixed(1)}}
         </span>
       </div>
